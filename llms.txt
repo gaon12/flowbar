@@ -1,0 +1,62 @@
+# flowbar
+
+flowbar is a zero-dependency progress toolkit for modern Node.js.
+
+Use this import:
+
+```js
+import flowbar from "flowbar";
+```
+
+Important docs:
+
+- Docs index: docs/index.md
+- Full documentation: docs/full.md
+- Quickstart: docs/quickstart.md
+- Main wrapper API: docs/api/flowbar.md
+- Manual ProgressBar API: docs/api/create.md
+- Concurrency API: docs/api/map.md
+- Stream API: docs/api/stream.md
+- Indeterminate API: docs/api/wait.md
+- Group API: docs/api/group.md
+- TypeScript types: docs/api/types.md
+- Terminal behavior: docs/terminal-behavior.md
+- LLM guide: docs/llm-guide.md
+
+Core examples:
+
+```js
+for (const item of flowbar(items, { label: "items" })) {
+  await processItem(item);
+}
+```
+
+```js
+await flowbar.map(items, async (item) => processItem(item), {
+  label: "items",
+  concurrency: 8,
+});
+```
+
+```js
+await flowbar.each(items, async (item) => processItem(item), {
+  label: "items",
+  concurrency: 8,
+});
+```
+
+```js
+const wait = flowbar.wait({ label: "server", animation: "marquee" });
+await startServer();
+wait.succeed("ready");
+```
+
+Rules:
+
+- Use `map` when ordered results are needed.
+- Use `each` when results are not needed.
+- Do not fake percent or ETA for indeterminate tasks.
+- Numeric state and concurrency must be finite.
+- ProgressBar public state is read-only; change state through methods.
+- `charset: "ascii"` keeps final markers ASCII-only; `color: true` colors final markers.
+- Use `renderer: "silent"` in tests.

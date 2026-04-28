@@ -1,0 +1,52 @@
+{
+  "name": "flowbar",
+  "version": "0.1.0",
+  "description": "A zero-dependency progress toolkit for modern Node.js workflows.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "progress",
+    "progress-bar",
+    "cli",
+    "terminal",
+    "typescript",
+    "zero-dependency",
+    "spinner",
+    "stream",
+    "async-iterator"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "llms.txt",
+    "llms-full.txt"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "npm run typecheck && npm run check",
+    "test": "node --test test/*.mjs",
+    "check": "node --check dist/index.js",
+    "prepack": "npm run build && npm test",
+    "prepare:zip": "npm run build && npm test && node --check dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.8.0"
+  }
+}

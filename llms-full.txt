@@ -1,0 +1,140 @@
+# flowbar Full LLM Context
+
+Use this file when a single LLM-readable context document is needed. For token savings, prefer `llms.txt`, `docs/index.md`, then the smallest matching API file.
+
+## Package
+
+flowbar is a zero-dependency progress toolkit for modern Node.js.
+
+```js
+import flowbar from "flowbar";
+```
+
+## API Routing
+
+- `flowbar(input, options)`: wrap `Iterable` or `AsyncIterable`; see `docs/api/flowbar.md`.
+- `flowbar.create(options)`: manual `ProgressBar`; see `docs/api/create.md`.
+- `flowbar.map(input, mapper, options)`: concurrent map with ordered results; see `docs/api/map.md`.
+- `flowbar.each(input, handler, options)`: concurrent processing with no result array; see `docs/api/map.md`.
+- `flowbar.stream(options)`: Node.js `Transform`; see `docs/api/stream.md`.
+- `flowbar.wait(options)`: indeterminate progress; see `docs/api/wait.md`.
+- `flowbar.group(options)`: group helper for multiple bars; see `docs/api/group.md`.
+- TypeScript options and snapshots: see `docs/api/types.md`.
+- Renderer details: see `docs/terminal-behavior.md`.
+
+## Core Examples
+
+Iterable:
+
+```js
+for (const item of flowbar(items, { label: "items" })) {
+  await processItem(item);
+}
+```
+
+Async iterable:
+
+```js
+for await (const item of flowbar(asyncItems, { label: "items", total })) {
+  await processItem(item);
+}
+```
+
+Concurrent map:
+
+```js
+const results = await flowbar.map(items, async (item) => {
+  return processItem(item);
+}, {
+  label: "items",
+  concurrency: 8,
+});
+```
+
+Concurrent each:
+
+```js
+await flowbar.each(items, async (item) => {
+  await processItem(item);
+}, {
+  label: "items",
+  concurrency: 8,
+});
+```
+
+Manual bar:
+
+```js
+const bar = flowbar.create({ label: "job", total: 100 });
+bar.increment(10);
+bar.setPostfix({ phase: "download" });
+bar.succeed("done");
+```
+
+Wait:
+
+```js
+const wait = flowbar.wait({ label: "server", status: "starting", animation: "marquee" });
+await startServer();
+wait.succeed("ready");
+```
+
+Stream:
+
+```js
+await pipeline(
+  createReadStream(input),
+  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  createWriteStream(output),
+);
+```
+
+## Runtime Contract
+
+- Default output is `stderr`.
+- Default renderer is `auto`.
+- TTY rendering updates a live region and throttles fast loops by `interval`.
+- CI, pipe, and non-TTY output use plain line rendering.
+- `map` returns ordered results.
+- `each` returns `undefined` and does not allocate a result array.
+- Mapper or handler failure closes the bar and calls async iterator `return()` when available.
+- `NaN` and `Infinity` are rejected for numeric state and concurrency.
+- `total` and initial `current` must be non-negative.
+- `concurrency` must be at least 1.
+- ProgressBar public state is read-only; change state through methods.
+- `group.close()` closes tracked child bars that are still open.
+- `charset: "ascii"` keeps progress and final markers ASCII-only.
+- `color: true` colors final state markers with ANSI.
+- Use `renderer: "silent"` in tests.
+
+## Avoid
+
+- Do not fake percent, remaining, or ETA for indeterminate work.
+- Do not use `map` for large tasks when results are not needed; use `each`.
+- Do not write progress to `stdout` when command output also uses `stdout`.
+- Do not use `console.log` during terminal live rendering; use `bar.log`, `bar.warn`, or `bar.error`.
+
+## Verification
+
+```sh
+npm run typecheck
+npm run lint
+npm run build
+npm test
+npm pack --dry-run
+```
+
+## Docs
+
+- `docs/index.md`
+- `docs/full.md`
+- `docs/quickstart.md`
+- `docs/llm-guide.md`
+- `docs/api/flowbar.md`
+- `docs/api/create.md`
+- `docs/api/map.md`
+- `docs/api/stream.md`
+- `docs/api/wait.md`
+- `docs/api/group.md`
+- `docs/api/types.md`
+- `docs/terminal-behavior.md`
