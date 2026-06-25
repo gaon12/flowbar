@@ -1,9 +1,17 @@
 {
   "name": "flowbar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A zero-dependency progress toolkit for modern Node.js workflows.",
   "type": "module",
   "license": "MIT",
+  "homepage": "https://github.com/gaon12/flowbar#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaon12/flowbar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gaon12/flowbar/issues"
+  },
   "keywords": [
     "progress",
     "progress-bar",
@@ -24,11 +32,16 @@
   },
   "types": "./dist/index.d.ts",
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "files": [
     "dist",
     "src",
     "docs",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "llms.txt",
     "llms-full.txt"

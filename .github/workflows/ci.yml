@@ -5,6 +5,10 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -36,6 +40,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check dist syntax
+        run: npm run check
 
       - name: Test
         run: npm test
