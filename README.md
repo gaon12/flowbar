@@ -1,5 +1,38 @@
 # flowbar
 
+flowbar is a progress toolkit for modern Node.js workflows. If Python has `tqdm`, flowbar aims to be the small Node.js toolkit you reach for when loops, async iterables, concurrent tasks, streams, or unknown-duration work need progress.
+
+## Remember this first
+
+```js
+import { pipeline } from "node:stream/promises";
+import flowbar from "flowbar";
+
+for (const file of flowbar(files, { label: "files" })) {
+  await upload(file);
+}
+
+for await (const row of flowbar(readRows(), { label: "rows" })) {
+  await save(row);
+}
+
+await flowbar.each(urls, async (url) => {
+  await fetch(url);
+}, { label: "fetch", concurrency: 8 });
+
+await pipeline(
+  input,
+  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  output,
+);
+
+const wait = flowbar.wait({ label: "connect", status: "waiting" });
+await connect();
+wait.succeed("connected");
+```
+
+The idea scales without changing tools: wrap an iterable, consume an async iterable, run bounded concurrency, track a byte stream, or show a wait state with one progress API.
+
 Node.js의 async iterable, promise concurrency, stream, indeterminate task까지 자연스럽게 다루는 zero-dependency progress toolkit입니다.
 
 `flowbar`의 목표는 progress bar 객체를 복잡하게 조작하게 만드는 것이 아니라, 작업을 감싸면 진행 상태가 자연스럽게 드러나도록 하는 것입니다.
@@ -209,6 +242,9 @@ LLM과 사람이 빠르게 읽기 위한 문서는 다음 순서로 보면 됩�
 - `docs/api/group.md`
 - `docs/api/types.md`
 - `docs/terminal-behavior.md`
+- `docs/terminal-reliability.md`
+- `docs/recipes.md`
+- `docs/comparison.md`
 
 전체 문서는 `docs/full.md`에 있습니다.
 LLM용 요약 색인은 `llms.txt`, 전체 LLM 문서는 `llms-full.txt`에 있습니다.
