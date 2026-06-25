@@ -123,6 +123,9 @@ export interface FlowbarFunction {
     configure(defaultOptions?: FlowbarOptions): FlowbarFunction;
     ProgressBar: typeof ProgressBar;
 }
+export type FlowbarCloseOptions = {
+    leave?: boolean;
+};
 export declare class ProgressBar {
     readonly id: number;
     private readonly normalizedOptions;
@@ -154,7 +157,10 @@ export declare class ProgressBar {
     snapshot(): FlowbarSnapshot;
     private updateRate;
     private render;
-    private startAnimationIfNeeded;
+    private shouldAnimate;
+    private startAnimationTimer;
+    private stopAnimationTimer;
+    private syncAnimationTimer;
     increment(delta?: number): this;
     update(value: number): this;
     setTotal(total: number | null | undefined): this;
@@ -164,7 +170,7 @@ export declare class ProgressBar {
     log(message: unknown): this;
     warn(message: unknown): this;
     error(message: unknown): this;
-    close(message?: unknown): this;
+    close(message?: unknown, options?: FlowbarCloseOptions): this;
     succeed(message?: unknown): this;
     fail(errorOrMessage?: unknown): this;
     cancel(message?: unknown): this;

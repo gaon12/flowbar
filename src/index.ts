@@ -136,6 +136,9 @@ export interface FlowbarFunction {
 }
 
 type RendererFinishState = "success" | "failure" | "cancelled" | "closed";
+export type FlowbarCloseOptions = {
+  leave?: boolean;
+};
 
 type Renderer = {
   register(bar: ProgressBar): void;
@@ -592,6 +595,18 @@ function compactLine(line: string, width: number): string {
   return truncateDisplay(line.replace(/\s+/g, " ").trim(), width);
 }
 
+function padDisplayLeft(value: string, width: number): string {
+  const padding = Math.max(0, width - displayWidth(value));
+  return `${" ".repeat(padding)}${value}`;
+}
+
+function clampDisplay(value: string, width: number): string {
+  if (width <= 0) {
+    return "";
+  }
+  return truncateDisplay(value, width);
+}
+
 function colorize(value: string, code: number, options: Readonly<RequiredNormalizedFlowbarOptions>): string {
   if (!options.color) {
     return value;
@@ -606,7 +621,13 @@ function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string 
   const ratio = total === 0 ? 1 : clampNumber(current / total, 0, 1);
   const percent = `${padLeft(Math.floor(ratio * 100), 3)}%`;
   const label = options.label ? `${options.label}  ` : "";
-  const count = `${formatAmount(current, options.unit)}/${formatAmount(total, options.unit)}`;
+  const currentAmount = formatAmount(current, options.unit);
+  const totalAmount = formatAmount(total, options.unit);
+  const countWidth = Math.max(
+    displayWidth(`${currentAmount}/${totalAmount}`),
+    displayWidth(`${totalAmount}/${totalAmount}`),
+  );
+  const count = `${padDisplayLeft(currentAmount, Math.max(0, countWidth - displayWidth(`/${totalAmount}`)))}/${totalAmount}`;
   const elapsed = formatDuration(snapshot.timing.elapsedMs);
   const remaining = snapshot.timing.remainingMs == null ? "--:--" : formatDuration(snapshot.timing.remainingMs);
   const rate = formatRate(snapshot.timing.ratePerSecond || 0, options.unit);
@@ -634,19 +655,18 @@ function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string 
     tailCandidates.push(` ${postfix}`);
   }
 
-  let tails = tailCandidates.slice();
-  while (tails.length >= 0) {
-    const tail = tails.join("");
-    const fixedWidth = displayWidth(`${label}${percent} ||${tail}`);
-    const barWidth = width - fixedWidth;
-    if (barWidth >= 6) {
-      const bar = makeBar(barWidth, ratio, charset);
-      return compactLine(`${label}${percent} |${bar}|${tail}`, width);
-    }
-    if (tails.length === 0) {
-      break;
-    }
-    tails.pop();
+  const prefix = `${label}${percent} |`;
+  const suffix = "|";
+  const availableWidth = width - displayWidth(`${prefix}${suffix}`);
+  if (availableWidth >= 6) {
+    const preferredBarWidth = options.preset === "compact"
+      ? Math.floor(width * 0.42)
+      : Math.floor(width * 0.36);
+    const barWidth = clampNumber(preferredBarWidth, 6, availableWidth);
+    const tailWidth = Math.max(0, availableWidth - barWidth);
+    const bar = makeBar(barWidth, ratio, charset);
+    const tail = clampDisplay(tailCandidates.join(""), tailWidth);
+    return compactLine(`${prefix}${bar}${suffix}${tail}`, width);
   }
 
   return compactLine(`${label}${percent} ${count}`, width);
@@ -921,17 +941,22 @@ class TerminalHub {
     if (this.renderedLineCount <= 0) {
       return;
     }
-    this.output.write("\r");
+    let frame = "\r";
     if (this.renderedLineCount > 1) {
-      this.output.write(`\u001B[${this.renderedLineCount - 1}A`);
+      frame += `\u001B[${this.renderedLineCount - 1}A`;
     }
+    this.output.write(frame);
   }
   deleteLiveRegion(): void {
     if (this.renderedLineCount <= 0) {
       return;
     }
-    this.moveToLiveTop();
-    this.output.write(`\u001B[${this.renderedLineCount}M`);
+    let frame = "\r";
+    if (this.renderedLineCount > 1) {
+      frame += `\u001B[${this.renderedLineCount - 1}A`;
+    }
+    frame += `\u001B[${this.renderedLineCount}M`;
+    this.output.write(frame);
     this.renderedLineCount = 0;
   }
   safeWriteLine(line: string, options: RequiredNormalizedFlowbarOptions): void {
@@ -954,20 +979,28 @@ class TerminalHub {
       this.deleteLiveRegion();
       return;
     }
-    this.moveToLiveTop();
+    let frame = "";
+    if (this.renderedLineCount > 0) {
+      frame += "\r";
+      if (this.renderedLineCount > 1) {
+        frame += `\u001B[${this.renderedLineCount - 1}A`;
+      }
+    }
     const maximumLines = Math.max(this.renderedLineCount, lines.length);
     for (let index = 0; index < maximumLines; index += 1) {
-      this.output.write("\u001B[2K");
       if (index < lines.length) {
-        this.output.write(lines[index]);
+        frame += `\r${lines[index]}\u001B[0K`;
+      } else {
+        frame += "\r\u001B[2K";
       }
       if (index < maximumLines - 1) {
-        this.output.write("\n");
+        frame += "\n";
       }
     }
     if (lines.length < maximumLines) {
-      this.output.write(`\u001B[${maximumLines - lines.length}A`);
+      frame += `\u001B[${maximumLines - lines.length}A`;
     }
+    this.output.write(frame);
     this.renderedLineCount = lines.length;
   }
 }
@@ -1085,7 +1118,7 @@ export class ProgressBar {
     }
 
     this.renderer.register(this);
-    this.startAnimationIfNeeded();
+    this.syncAnimationTimer();
   }
 
   get options(): Readonly<RequiredNormalizedFlowbarOptions> {
@@ -1194,23 +1227,42 @@ export class ProgressBar {
     this.renderer.update(this, force);
   }
 
-  private startAnimationIfNeeded(): void {
-    const interval = this.normalizedOptions.indeterminateInterval || this.normalizedOptions.interval;
-    if (!this.normalizedOptions.enabled || this.normalizedOptions.renderer === "silent") {
+  private shouldAnimate(): boolean {
+    return this.normalizedOptions.enabled && this.normalizedOptions.renderer !== "silent" && this.getMode() === "indeterminate";
+  }
+
+  private startAnimationTimer(): void {
+    if (this.animationTimer || !this.shouldAnimate()) {
       return;
     }
+    const interval = this.normalizedOptions.indeterminateInterval || this.normalizedOptions.interval;
     this.animationTimer = setInterval(() => {
-      if (this.closedValue) {
+      if (this.closedValue || !this.shouldAnimate()) {
+        this.stopAnimationTimer();
         return;
       }
-      if (this.getMode() === "indeterminate") {
-        this.frameIndexValue += 1;
-        this.updatedAtValue = now();
-        this.renderer.update(this, true);
-      }
+      this.frameIndexValue += 1;
+      this.updatedAtValue = now();
+      this.renderer.update(this, true);
     }, interval);
     if (typeof this.animationTimer.unref === "function") {
       this.animationTimer.unref();
+    }
+  }
+
+  private stopAnimationTimer(): void {
+    if (!this.animationTimer) {
+      return;
+    }
+    clearInterval(this.animationTimer);
+    this.animationTimer = undefined;
+  }
+
+  private syncAnimationTimer(): void {
+    if (this.shouldAnimate()) {
+      this.startAnimationTimer();
+    } else {
+      this.stopAnimationTimer();
     }
   }
 
@@ -1222,6 +1274,7 @@ export class ProgressBar {
     const previous = this.currentValue;
     this.currentValue = Math.max(0, this.currentValue + numericDelta);
     this.updateRate(previous, this.currentValue);
+    this.syncAnimationTimer();
     this.render(false);
     return this;
   }
@@ -1233,6 +1286,7 @@ export class ProgressBar {
     const previous = this.currentValue;
     this.currentValue = Math.max(0, assertFiniteNumber(value, "value"));
     this.updateRate(previous, this.currentValue);
+    this.syncAnimationTimer();
     this.render(false);
     return this;
   }
@@ -1246,6 +1300,7 @@ export class ProgressBar {
       this.normalizedOptions.mode = "determinate";
     }
     this.updatedAtValue = now();
+    this.syncAnimationTimer();
     this.render(true);
     return this;
   }
@@ -1256,6 +1311,7 @@ export class ProgressBar {
     }
     this.normalizedOptions.mode = normalizeMode(mode);
     this.updatedAtValue = now();
+    this.syncAnimationTimer();
     this.render(true);
     return this;
   }
@@ -1295,8 +1351,8 @@ export class ProgressBar {
     return this;
   }
 
-  close(message?: unknown): this {
-    return this.finish("closed", message);
+  close(message?: unknown, options: FlowbarCloseOptions = {}): this {
+    return this.finish("closed", message, options.leave);
   }
 
   succeed(message: unknown = "done"): this {
@@ -1311,21 +1367,18 @@ export class ProgressBar {
     return this.finish("cancelled", message);
   }
 
-  private finish(state: RendererFinishState, message?: unknown): this {
+  private finish(state: RendererFinishState, message?: unknown, leave?: boolean): this {
     if (this.closedValue) {
       return this;
     }
     this.closedValue = true;
     this.updatedAtValue = now();
-    if (this.animationTimer) {
-      clearInterval(this.animationTimer);
-      this.animationTimer = undefined;
-    }
+    this.stopAnimationTimer();
     if (this.normalizedOptions.signal && this.abortHandler) {
       this.normalizedOptions.signal.removeEventListener("abort", this.abortHandler);
       this.abortHandler = undefined;
     }
-    this.renderer.finalize(this, state, safeMessage(message), this.normalizedOptions.leave);
+    this.renderer.finalize(this, state, safeMessage(message), leave ?? this.normalizedOptions.leave);
     this.renderer.dispose?.();
     return this;
   }
@@ -1596,7 +1649,7 @@ async function task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Pro
       return stepHandler(root);
     },
     async progress<U>(stepLabel: string, items: Iterable<U> | AsyncIterable<U>, itemHandler: FlowbarHandler<U>, progressOptions: FlowbarMapOptions = {}): Promise<void> {
-      root.close();
+      root.close(undefined, { leave: false });
       return eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
     },
   };

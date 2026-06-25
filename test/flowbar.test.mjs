@@ -160,6 +160,89 @@ test("terminal renderer throttles tight update loops", () => {
   assert.ok(writes < 100, `expected throttled writes, saw ${writes}`);
 });
 
+test("terminal renderer batches line repaint chunks with content", () => {
+  const chunks = [];
+  const output = {
+    isTTY: true,
+    columns: 80,
+    write(chunk) {
+      chunks.push(String(chunk));
+    },
+    on() {},
+    off() {},
+  };
+  const bar = flowbar.create({ label: "paint", total: 2, output, renderer: "terminal" });
+
+  bar.setStatus("half");
+  bar.succeed();
+
+  assert.ok(chunks.length > 0);
+  assert.equal(chunks.some((chunk) => chunk === "\u001B[2K"), false);
+  assert.ok(chunks.some((chunk) => chunk.includes("paint") && chunk.includes("\u001B[0K")));
+});
+
+test("determinate bar width stays stable across count and postfix changes", () => {
+  const lines = [];
+  const bar = flowbar.create({
+    label: "stable",
+    total: 100,
+    current: 9,
+    charset: "ascii",
+    renderer: "memory",
+    output: { columns: 80, write() {} },
+    onRender(line) {
+      if (line.includes("|") && !line.startsWith("[OK]")) {
+        lines.push(line);
+      }
+    },
+  });
+
+  bar.update(10);
+  bar.setPostfix({ phase: "a-very-long-phase-name-that-should-be-truncated" });
+  bar.update(99);
+  bar.succeed();
+
+  const barWidths = lines
+    .map((line) => line.match(/\|([^|]*)\|/)?.[1]?.length)
+    .filter((width) => width != null);
+  assert.ok(barWidths.length >= 3);
+  assert.equal(new Set(barWidths).size, 1);
+});
+
+test("determinate bars do not start idle animation timers", () => {
+  const originalSetInterval = globalThis.setInterval;
+  const originalClearInterval = globalThis.clearInterval;
+  let started = 0;
+  let cleared = 0;
+
+  globalThis.setInterval = () => {
+    started += 1;
+    return { unref() {} };
+  };
+  globalThis.clearInterval = () => {
+    cleared += 1;
+  };
+
+  try {
+    const determinate = flowbar.create({ total: 10, renderer: "memory" });
+    const counting = flowbar.create({ current: 1, renderer: "memory" });
+    assert.equal(started, 0);
+
+    const wait = flowbar.wait({ renderer: "memory" });
+    assert.equal(started, 1);
+
+    wait.setTotal(2);
+    assert.equal(cleared, 1);
+
+    determinate.close();
+    counting.close();
+    wait.close();
+  } finally {
+    globalThis.setInterval = originalSetInterval;
+    globalThis.clearInterval = originalClearInterval;
+  }
+});
+
 test("ASCII charset uses ASCII final markers", () => {
   const lines = [];
   const bar = flowbar.create({
@@ -205,6 +288,26 @@ test("group.close closes tracked child bars", () => {
 
   assert.equal(first.closed, true);
   assert.equal(second.closed, true);
+});
+
+test("task.progress transitions without leaving a root closed line", async () => {
+  const lines = [];
+
+  await flowbar.task(
+    "deploy",
+    async (task) => {
+      await task.progress("upload", [1, 2], async () => {});
+    },
+    {
+      renderer: "memory",
+      onRender(line) {
+        lines.push(line);
+      },
+    },
+  );
+
+  assert.equal(lines.some((line) => line.includes("closed after")), false);
+  assert.ok(lines.some((line) => line.includes("upload")));
 });
 
 test("setTotal rejects NaN and preserves the previous total", () => {
