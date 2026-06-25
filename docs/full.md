@@ -229,6 +229,7 @@ npm pack --dry-run
 - `docs/terminal-reliability.md`
 - `docs/recipes.md`
 - `docs/comparison.md`
+- `docs/release.md`
 
 ## License
 

@@ -25,6 +25,7 @@ Important docs:
 - Terminal reliability: docs/terminal-reliability.md
 - Recipes: docs/recipes.md
 - Comparison: docs/comparison.md
+- Release: docs/release.md
 - LLM guide: docs/llm-guide.md
 
 Core examples:

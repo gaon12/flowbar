@@ -18,6 +18,7 @@ This file is the short entry point for humans and LLMs. Prefer the smallest API 
 - Use `docs/terminal-reliability.md` for terminal stability expectations and regression coverage.
 - Use `docs/recipes.md` for copy-ready Node.js workflow examples.
 - Use `docs/comparison.md` for positioning and fair comparison guidance.
+- Use `docs/release.md` for GitHub Release and npm publish workflow.
 - Use `docs/full.md` only when a single combined document is needed.
 
 ## Core Contract

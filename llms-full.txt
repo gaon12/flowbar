@@ -25,6 +25,7 @@ import flowbar from "flowbar";
 - Recipes: see `docs/recipes.md`.
 - Comparison: see `docs/comparison.md`.
 - Terminal reliability: see `docs/terminal-reliability.md`.
+- Release workflow: see `docs/release.md`.
 
 ## Core Examples
 
@@ -159,3 +160,4 @@ npm pack --dry-run
 - `docs/terminal-reliability.md`
 - `docs/recipes.md`
 - `docs/comparison.md`
+- `docs/release.md`
