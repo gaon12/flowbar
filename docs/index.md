@@ -14,6 +14,9 @@ This file is the short entry point for humans and LLMs. Prefer the smallest API 
 - Use `docs/api/group.md` for multiple bars in one terminal live region.
 - Use `docs/api/types.md` for TypeScript names and option shapes.
 - Use `docs/terminal-behavior.md` for renderer, throttling, TTY, CI, width, and logging behavior.
+- Use `docs/terminal-reliability.md` for terminal stability expectations and regression coverage.
+- Use `docs/recipes.md` for copy-ready Node.js workflow examples.
+- Use `docs/comparison.md` for positioning and fair comparison guidance.
 - Use `docs/full.md` only when a single combined document is needed.
 
 ## Core Contract
