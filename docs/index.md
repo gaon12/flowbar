@@ -12,6 +12,7 @@ This file is the short entry point for humans and LLMs. Prefer the smallest API 
 - Use `docs/api/stream.md` for Node.js `Transform` byte progress.
 - Use `docs/api/wait.md` for indeterminate work.
 - Use `docs/api/group.md` for multiple bars in one terminal live region.
+- Use `docs/api/task.md` for multi-step task workflows.
 - Use `docs/api/types.md` for TypeScript names and option shapes.
 - Use `docs/terminal-behavior.md` for renderer, throttling, TTY, CI, width, and logging behavior.
 - Use `docs/terminal-reliability.md` for terminal stability expectations and regression coverage.

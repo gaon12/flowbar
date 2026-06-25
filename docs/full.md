@@ -19,6 +19,7 @@ npm install flowbar
 - `flowbar.wait(options)`: indeterminate work with no fake ETA.
 - `flowbar.stream(options)`: Node.js `Transform` progress, usually byte progress.
 - `flowbar.group(options)`: shared defaults for multiple bars.
+- `flowbar.task(label, handler, options)`: multi-step workflows with task phases.
 
 ## Core Principles
 
@@ -65,6 +66,7 @@ bar.succeed("done");
 
 Runtime validation rejects non-finite numeric state such as `NaN` and `Infinity`. `setTotal(total)` requires a finite non-negative number, `null`, or `undefined`.
 Public `ProgressBar` state is exposed as read-only getters. Use methods such as `increment`, `update`, `setTotal`, `setStatus`, and `setPostfix` to change state.
+`close(message, { leave: false })` suppresses the final line for that close call without changing the bar's default `leave` option.
 
 ## Concurrency
 
@@ -132,6 +134,24 @@ for (const file of files) {
 }
 bar.succeed();
 ```
+
+## Task
+
+```js
+await flowbar.task("deploy", async (task) => {
+  await task.step("prepare", async () => {
+    await prepare();
+  });
+
+  await task.progress("upload", files, async (file) => {
+    await upload(file);
+  }, {
+    concurrency: 4,
+  });
+});
+```
+
+`task.progress()` transitions from the root task bar to child progress without leaving an intermediate `closed after ...` final line.
 
 ## Modes
 
@@ -203,8 +223,12 @@ npm pack --dry-run
 - `docs/api/stream.md`
 - `docs/api/wait.md`
 - `docs/api/group.md`
+- `docs/api/task.md`
 - `docs/api/types.md`
 - `docs/terminal-behavior.md`
+- `docs/terminal-reliability.md`
+- `docs/recipes.md`
+- `docs/comparison.md`
 
 ## License
 

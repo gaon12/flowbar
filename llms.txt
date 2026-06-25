@@ -19,8 +19,12 @@ Important docs:
 - Stream API: docs/api/stream.md
 - Indeterminate API: docs/api/wait.md
 - Group API: docs/api/group.md
+- Task API: docs/api/task.md
 - TypeScript types: docs/api/types.md
 - Terminal behavior: docs/terminal-behavior.md
+- Terminal reliability: docs/terminal-reliability.md
+- Recipes: docs/recipes.md
+- Comparison: docs/comparison.md
 - LLM guide: docs/llm-guide.md
 
 Core examples:
@@ -58,5 +62,6 @@ Rules:
 - Do not fake percent or ETA for indeterminate tasks.
 - Numeric state and concurrency must be finite.
 - ProgressBar public state is read-only; change state through methods.
+- Use `flowbar.task` for multi-step workflows and `task.progress` when a step has iterable progress.
 - `charset: "ascii"` keeps final markers ASCII-only; `color: true` colors final markers.
 - Use `renderer: "silent"` in tests.
