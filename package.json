@@ -39,14 +39,15 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "npm run typecheck && npm run check",
+    "lint": "npm run typecheck && npm run build && npm run check",
+    "pretest": "npm run build",
     "test": "node --test test/*.mjs",
     "check": "node --check dist/index.js",
-    "prepack": "npm run build && npm test",
-    "prepare:zip": "npm run build && npm test && node --check dist/index.js"
+    "prepack": "npm test",
+    "prepare:zip": "npm test && node --check dist/index.js"
   },
   "devDependencies": {
-    "@types/node": "^24.0.0",
+    "@types/node": "^20.0.0",
     "typescript": "^5.8.0"
   }
 }
