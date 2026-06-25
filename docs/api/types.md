@@ -14,6 +14,7 @@ import flowbar, {
   FlowbarMode,
   FlowbarAnimation,
   FlowbarRenderCallback,
+  FlowbarCloseOptions,
   WritableLike,
 } from "flowbar";
 ```
@@ -70,9 +71,20 @@ TypeScript 사용자가 아니어도 런타임 검증이 적용됩니다.
 - `FlowbarFunction`: default export의 callable API와 static helpers
 - `ProgressBar`: 수동 bar class
 - `FlowbarOptions`: 모든 renderer/helper 공통 옵션
+- `FlowbarCloseOptions`: `close(message, options)`의 호출 단위 종료 옵션
 - `FlowbarMapOptions`: `FlowbarOptions & { concurrency?: number }`
 - `FlowbarSnapshot`: `snapshot()`과 `onRender`가 받는 상태 객체
 - `WritableLike`: custom output stream 최소 contract
+
+## FlowbarCloseOptions
+
+```ts
+type FlowbarCloseOptions = {
+  leave?: boolean;
+};
+```
+
+`leave: false`는 해당 `close()` 호출에서만 final line 출력을 생략합니다. bar 기본 옵션의 `leave` 값을 바꾸지 않습니다.
 
 ## ProgressBar Public State
 

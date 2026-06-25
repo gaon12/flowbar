@@ -79,4 +79,6 @@ bar 종료 메서드:
 - `succeed(message)`
 - `fail(errorOrMessage)`
 - `cancel(message)`
-- `close(message)`
+- `close(message, options)`
+
+`close(message, { leave: false })`는 해당 종료 호출에서 final line을 남기지 않습니다. `succeed`, `fail`, `cancel`의 최종 출력 동작은 그대로 유지됩니다.

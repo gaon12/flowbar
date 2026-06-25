@@ -9,8 +9,12 @@
 - concurrency: `docs/api/map.md`
 - stream: `docs/api/stream.md`
 - indeterminate: `docs/api/wait.md`
+- multi-step task: `docs/api/task.md`
 - TypeScript/options: `docs/api/types.md`
 - terminal behavior: `docs/terminal-behavior.md`
+- recipes: `docs/recipes.md`
+- comparison/positioning: `docs/comparison.md`
+- terminal reliability: `docs/terminal-reliability.md`
 
 ## 기본 import
 
@@ -80,6 +84,17 @@ await pipeline(
   flowbar.stream({ label: "copy", total: size, unit: "byte" }),
   createWriteStream(output),
 );
+```
+
+## task
+
+```js
+await flowbar.task("deploy", async (task) => {
+  await task.step("prepare", async () => prepare());
+  await task.progress("upload", files, async (file) => upload(file), {
+    concurrency: 4,
+  });
+});
 ```
 
 ## 피해야 할 패턴

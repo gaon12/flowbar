@@ -100,6 +100,12 @@ bar.cancel("user cancelled");
 bar.close();
 ```
 
+`close(message, { leave: false })`를 사용하면 종료 줄을 남기지 않고 닫을 수 있습니다. task 내부의 단계 전환처럼 중간 출력이 최종 결과처럼 보이면 안 되는 경우에 유용합니다.
+
+```js
+bar.close(undefined, { leave: false });
+```
+
 ### snapshot()
 
 현재 진행 상태를 읽습니다.
