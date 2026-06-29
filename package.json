@@ -1,6 +1,6 @@
 {
   "name": "flowbar",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A zero-dependency progress toolkit for modern Node.js workflows.",
   "type": "module",
   "license": "MIT",

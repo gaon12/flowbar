@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2
+
+- Split the source and tests into focused modules capped at 350 lines.
+- Add Biome linting, formatting, and automated file-length enforcement.
+- Consolidate local and CI validation into a single command.
+- Publish npm packages and GitHub Releases automatically from version tags.
+
 ## 0.1.1
 
 - Stabilize terminal repaint behavior to reduce flicker.
