@@ -1,6 +1,6 @@
 # Release
 
-flowbar publishes to npm from GitHub Releases.
+flowbar publishes to npm and creates a GitHub Release when a version tag is pushed.
 
 ## Prerequisites
 
@@ -21,9 +21,16 @@ npm pack --dry-run
 ```
 
 3. Commit and push to `main`.
-4. Create a GitHub Release tag such as `v0.1.1`.
+4. Create and push a version tag:
+
+```sh
+git tag v0.1.2
+git push origin v0.1.2
+```
+
 5. The `Release` workflow validates Node.js 20.x, 22.x, and 24.x.
-6. If validation passes, the workflow runs `npm publish --access public --provenance`.
+6. If validation passes, the workflow publishes to npm using `NPM_TOKEN`.
+7. After npm succeeds, GitHub creates the matching Release with generated notes.
 
 ## Version Rule
 
