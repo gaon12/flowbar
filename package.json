@@ -52,14 +52,18 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "npm run typecheck && npm run build && npm run check",
+    "lint": "biome check . && npm run check:lines",
+    "lint:fix": "biome check --write .",
+    "check:lines": "node scripts/check-file-length.mjs",
+    "validate": "npm run lint && npm run typecheck && npm test && npm run check",
     "pretest": "npm run build",
-    "test": "node --test test/*.mjs",
+    "test": "node --test",
     "check": "node --check dist/index.js",
     "prepack": "npm test",
     "prepare:zip": "npm test && node --check dist/index.js"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.1",
     "@types/node": "^20.0.0",
     "typescript": "^5.8.0"
   }
