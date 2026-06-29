@@ -35,17 +35,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Build
-        run: npm run build
-
-      - name: Check dist syntax
-        run: npm run check
-
-      - name: Test
-        run: npm test
+      - name: Validate
+        run: npm run validate
 
       - name: Pack smoke test
         run: npm pack --dry-run
