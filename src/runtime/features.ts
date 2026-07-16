@@ -97,8 +97,8 @@ export async function task<T>(
       itemHandler: FlowbarHandler<U>,
       progressOptions: FlowbarMapOptions = {},
     ): Promise<void> {
-      root.close(undefined, { leave: false });
-      return eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
+      root.setStatus(stepLabel);
+      await eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
     },
   };
   try {
