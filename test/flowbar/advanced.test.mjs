@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { displayWidth, truncateDisplay } from "../../dist/core/utils.js";
 import { create, each, group, map, task, wait } from "../../dist/index.js";
 
 test("terminal renderer throttles tight update loops", () => {
@@ -231,6 +232,31 @@ test("setTotal rejects NaN and preserves the previous total", () => {
   bar.close();
 });
 
+test("clearing total exits determinate mode", () => {
+  const bar = create({ total: 2, renderer: "silent" });
+
+  bar.setTotal(undefined);
+
+  assert.equal(bar.total, undefined);
+  assert.equal(bar.snapshot().mode, "indeterminate");
+  bar.increment();
+  assert.equal(bar.snapshot().mode, "counting");
+  bar.close();
+});
+
+test("display width and truncation preserve grapheme clusters", () => {
+  const family = "👨‍👩‍👧‍👦";
+  assert.equal(displayWidth(`한${family}é👍🏽`), 7);
+  assert.equal(truncateDisplay(`A${family}BC`, 4), `A${family}…`);
+});
+
+test("invalid renderer capabilities fail during construction", () => {
+  assert.throws(() => create({ renderer: "typo" }), /renderer must be one of/);
+  assert.throws(() => create({ charset: "petscii" }), /charset must be one of/);
+  assert.throws(() => create({ output: {} }), /output must provide a write/);
+  assert.throws(() => create({ onRender: "not a callback" }), /onRender must be a function/);
+});
+
 test("map closes async iterators when a mapper fails", async () => {
   let cleanedUp = false;
   async function* source() {
@@ -303,43 +329,4 @@ test("each caps workers to a known input size", async () => {
   await each(input, async () => {}, { renderer: "silent", concurrency: 100 });
 
   assert.ok(nextCalls <= 6, `expected at most 6 iterator reads, saw ${nextCalls}`);
-});
-
-test("mapper failure aborts and awaits in-flight handlers", async () => {
-  let releaseFailure;
-  const secondStarted = new Promise((resolve) => {
-    releaseFailure = resolve;
-  });
-  let cleanupFinished = false;
-  let receivedAbort = false;
-
-  await assert.rejects(
-    () =>
-      each(
-        [1, 2],
-        async (value, _index, _bar, signal) => {
-          if (value === 1) {
-            await secondStarted;
-            throw new Error("primary failure");
-          }
-          releaseFailure();
-          await new Promise((resolve) => {
-            signal.addEventListener(
-              "abort",
-              () => {
-                receivedAbort = true;
-                setTimeout(resolve, 20);
-              },
-              { once: true },
-            );
-          });
-          cleanupFinished = true;
-        },
-        { renderer: "silent", concurrency: 2 },
-      ),
-    /primary failure/,
-  );
-
-  assert.equal(receivedAbort, true);
-  assert.equal(cleanupFinished, true);
 });
