@@ -55,9 +55,11 @@
     "lint": "biome check . && npm run check:lines",
     "lint:fix": "biome check --write .",
     "check:lines": "node scripts/check-file-length.mjs",
-    "validate": "npm run lint && npm run typecheck && npm test && npm run check",
+    "validate": "npm run lint && npm run typecheck && npm test && npm run test:pty && npm run check",
     "pretest": "npm run build",
     "test": "node --test",
+    "pretest:pty": "npm run build",
+    "test:pty": "node scripts/pty-integration.mjs",
     "check": "node --check dist/index.js",
     "prepack": "npm test",
     "prepare:zip": "npm test && node --check dist/index.js"
@@ -65,6 +67,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.1",
     "@types/node": "^20.0.0",
+    "node-pty": "^1.1.0",
     "typescript": "^5.8.0"
   }
 }
