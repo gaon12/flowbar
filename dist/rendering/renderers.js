@@ -1,4 +1,5 @@
 import { getTerminalWidth } from "../core/options.js";
+import { safeJsonStringify } from "../core/snapshot.js";
 import { now, truncateDisplay } from "../core/utils.js";
 import { buildFinalLine, buildLine } from "./format.js";
 class SilentRenderer {
@@ -73,15 +74,21 @@ class PlainRenderer {
 }
 class JsonRenderer {
     options;
+    lastWriteAt = 0;
     constructor(options) {
         this.options = options;
     }
     register(bar) {
         this.update(bar, true);
     }
-    update(bar, _force = false) {
+    update(bar, force = false) {
+        const currentTime = now();
+        if (!force && currentTime - this.lastWriteAt < this.options.interval) {
+            return;
+        }
+        this.lastWriteAt = currentTime;
         const snapshot = bar.snapshot();
-        const line = JSON.stringify({ type: "progress", snapshot });
+        const line = safeJsonStringify({ type: "progress", snapshot });
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, snapshot);
     }
@@ -90,12 +97,12 @@ class JsonRenderer {
             return;
         }
         const snapshot = bar.snapshot();
-        const line = JSON.stringify({ type: "final", state, message, snapshot });
+        const line = safeJsonStringify({ type: "final", state, message, snapshot });
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, snapshot);
     }
     log(_bar, level, message) {
-        const line = JSON.stringify({ type: "log", level, message });
+        const line = safeJsonStringify({ type: "log", level, message });
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, undefined);
     }
@@ -132,26 +139,26 @@ class TerminalHub {
         }
         return false;
     }
-    register(bar) {
-        this.entries.set(bar.id, bar);
+    register(bar, options) {
+        this.entries.set(bar.id, { bar, options });
         this.render(true);
     }
-    update(bar, force = false) {
-        this.render(force, bar.options.interval);
+    update(force, options) {
+        this.render(force, options.interval);
     }
-    finalize(bar, state, message, leave) {
+    finalize(bar, state, message, leave, options) {
         this.entries.delete(bar.id);
-        const width = getTerminalWidth(this.output, bar.options);
+        const width = getTerminalWidth(this.output, options);
         const line = buildFinalLine(bar.snapshot(), state, message, width);
         if (leave) {
-            this.safeWriteLine(line, bar.options);
+            this.safeWriteLine(line, options);
         }
         else {
             this.render(true);
         }
     }
-    log(bar, level, message) {
-        this.safeWriteLine(`${level}: ${message}`, bar.options);
+    log(level, message, options) {
+        this.safeWriteLine(`${level}: ${message}`, options);
     }
     dispose() {
         if (this.disposed) {
@@ -198,8 +205,8 @@ class TerminalHub {
             return;
         }
         this.lastRenderAt = currentTime;
-        const bars = Array.from(this.entries.values()).filter((bar) => !bar.closed);
-        const lines = bars.map((bar) => buildLine(bar.snapshot(), getTerminalWidth(this.output, bar.options)));
+        const bars = Array.from(this.entries.values()).filter(({ bar }) => !bar.closed);
+        const lines = bars.map(({ bar, options }) => buildLine(bar.snapshot(), getTerminalWidth(this.output, options)));
         if (lines.length === 0) {
             this.deleteLiveRegion();
             return;
@@ -245,16 +252,16 @@ class TerminalRenderer {
         this.hub = hub;
     }
     register(bar) {
-        this.hub.register(bar);
+        this.hub.register(bar, this.options);
     }
-    update(bar, force = false) {
-        this.hub.update(bar, force);
+    update(_bar, force = false) {
+        this.hub.update(force, this.options);
     }
     finalize(bar, state, message, leave) {
-        this.hub.finalize(bar, state, message, leave);
+        this.hub.finalize(bar, state, message, leave, this.options);
     }
-    log(bar, level, message) {
-        this.hub.log(bar, level, message);
+    log(_bar, level, message) {
+        this.hub.log(level, message, this.options);
     }
     dispose() {
         if (this.disposed) {

@@ -31,9 +31,9 @@ export type FlowbarSnapshot = {
   readonly total: number | undefined;
   readonly mode: Exclude<FlowbarMode, "auto">;
   readonly status: string;
-  readonly postfix: Record<string, unknown>;
+  readonly postfix: DeepReadonly<Record<string, unknown>>;
   readonly frameIndex: number;
-  readonly options: Readonly<RequiredNormalizedFlowbarOptions>;
+  readonly options: FlowbarOptionsSnapshot;
   readonly timing: FlowbarTiming;
 };
 
@@ -93,6 +93,18 @@ export type RequiredNormalizedFlowbarOptions = FlowbarOptions & {
   onRender?: FlowbarRenderCallback;
   spinnerFrames?: string[];
 };
+
+export type DeepReadonly<T> = T extends (...args: never[]) => unknown
+  ? T
+  : T extends readonly (infer Item)[]
+    ? readonly DeepReadonly<Item>[]
+    : T extends object
+      ? { readonly [Key in keyof T]: DeepReadonly<T[Key]> }
+      : T;
+
+export type FlowbarOptionsSnapshot = DeepReadonly<
+  Omit<RequiredNormalizedFlowbarOptions, "output" | "signal" | "onRender">
+>;
 
 export type FlowbarMapOptions = FlowbarOptions & {
   concurrency?: number;

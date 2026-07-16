@@ -148,15 +148,27 @@ test("named ProgressBar export is available", () => {
 });
 
 test("ProgressBar exposes read-only public state", () => {
-  const bar = create({ total: 2, renderer: "silent" });
+  const sourcePostfix = { nested: { value: 1 } };
+  const output = { metadata: { mutable: true }, write() {} };
+  const bar = create({ total: 2, renderer: "silent", output, postfix: sourcePostfix });
 
   assert.throws(() => {
     bar.current = 10;
   }, TypeError);
 
   const options = bar.options;
-  options.mode = "indeterminate";
+  assert.equal("output" in options, false);
+  assert.equal("signal" in options, false);
+  assert.equal("onRender" in options, false);
+  assert.equal(Object.isFrozen(options), true);
+  assert.equal(Object.isFrozen(options.postfix.nested), true);
+  sourcePostfix.nested.value = 2;
+  assert.equal(options.postfix.nested.value, 1);
+  assert.throws(() => {
+    options.postfix.nested.value = 3;
+  }, TypeError);
   assert.equal(bar.snapshot().mode, "determinate");
+  assert.equal(bar.snapshot().postfix.nested.value, 1);
 
   bar.close();
 });
