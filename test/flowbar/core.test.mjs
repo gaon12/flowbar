@@ -2,11 +2,27 @@ import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
 import test from "node:test";
-import flowbar, { ProgressBar } from "../../dist/index.js";
+import flowbar, { configure, create, map, ProgressBar, stream, wait } from "../../dist/index.js";
+
+test("default export is only the iterable wrapper", () => {
+  assert.equal(typeof flowbar, "function");
+  assert.deepEqual(Object.keys(flowbar), []);
+  assert.equal(flowbar.create, undefined);
+});
+
+test("configure returns a non-callable client with shared defaults", () => {
+  const client = configure({ renderer: "silent", unit: "byte" });
+  assert.equal(typeof client, "object");
+  assert.equal(Object.isFrozen(client), true);
+
+  const bar = client.create({ total: 3 });
+  assert.equal(bar.options.unit, "byte");
+  bar.close();
+});
 
 test("manual progress bar exposes elapsed, remaining, and rate", async () => {
   const lines = [];
-  const bar = flowbar.create({
+  const bar = create({
     label: "manual",
     total: 3,
     renderer: "memory",
@@ -56,7 +72,7 @@ test("flowbar wraps an async iterable without changing values", async () => {
 });
 
 test("flowbar.map returns ordered results while using concurrency", async () => {
-  const result = await flowbar.map(
+  const result = await map(
     [1, 2, 3, 4],
     async (value) => {
       await new Promise((resolve) => setTimeout(resolve, 5 * (5 - value)));
@@ -72,7 +88,7 @@ test("flowbar.map returns ordered results while using concurrency", async () => 
 });
 
 test("wait mode can transition to determinate mode using setTotal", () => {
-  const bar = flowbar.wait({ renderer: "memory", animation: "marquee" });
+  const bar = wait({ renderer: "memory", animation: "marquee" });
   assert.equal(bar.snapshot().mode, "indeterminate");
 
   bar.setTotal(2);
@@ -86,7 +102,7 @@ test("wait mode can transition to determinate mode using setTotal", () => {
 });
 
 test("stream mode increments by byte length", async () => {
-  const progress = flowbar.stream({ total: 6, unit: "byte", renderer: "silent" });
+  const progress = stream({ total: 6, unit: "byte", renderer: "silent" });
   const chunks = [];
 
   Readable.from([Buffer.from("abc"), Buffer.from("def")])
@@ -107,7 +123,7 @@ test("named ProgressBar export is available", () => {
 });
 
 test("ProgressBar exposes read-only public state", () => {
-  const bar = flowbar.create({ total: 2, renderer: "silent" });
+  const bar = create({ total: 2, renderer: "silent" });
 
   assert.throws(() => {
     bar.current = 10;
@@ -122,7 +138,7 @@ test("ProgressBar exposes read-only public state", () => {
 
 test("duration fields are zero padded", () => {
   const lines = [];
-  const bar = flowbar.create({
+  const bar = create({
     label: "demo",
     total: 2,
     renderer: "memory",

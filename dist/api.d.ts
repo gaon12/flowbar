@@ -1,4 +1,13 @@
-import type { FlowbarFunction, FlowbarOptions } from "./types.js";
-export declare function configure(defaultOptions?: FlowbarOptions): FlowbarFunction;
-export declare const flowbarApi: FlowbarFunction;
-export default flowbarApi;
+import { createGroup, task as runTask, streamWithProgress } from "./runtime/features.js";
+import { eachWithProgress, flowbar, mapWithProgress } from "./runtime/iterables.js";
+import { createProgressBar } from "./runtime/progress-bar.js";
+import type { FlowbarClient, FlowbarOptions } from "./types.js";
+export declare const create: typeof createProgressBar;
+export declare const wait: (options?: FlowbarOptions) => import("./runtime/progress-bar.js").ProgressBar;
+export declare const map: typeof mapWithProgress;
+export declare const each: typeof eachWithProgress;
+export declare const stream: typeof streamWithProgress;
+export declare const group: typeof createGroup;
+export declare const task: typeof runTask;
+export declare function configure(defaultOptions?: FlowbarOptions): FlowbarClient;
+export default flowbar;
