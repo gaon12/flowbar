@@ -1,6 +1,29 @@
 import { cloneData } from "./snapshot.js";
 import { assertFiniteNumber, chooseCharset, clampNumber, DEFAULT_INTERVAL_MS, DEFAULT_MIN_ETA_ELAPSED_MS, DEFAULT_RATE_SMOOTHING, DEFAULT_TERMINAL_WIDTH, isFiniteNumber, } from "./utils.js";
 export const MAX_CONCURRENCY = 1024;
+function normalizeRenderer(renderer) {
+    if (renderer == null || renderer === "") {
+        return "auto";
+    }
+    if (renderer === "auto" ||
+        renderer === "terminal" ||
+        renderer === "plain" ||
+        renderer === "silent" ||
+        renderer === "json" ||
+        renderer === "memory") {
+        return renderer;
+    }
+    throw new TypeError('renderer must be one of "auto", "terminal", "plain", "silent", "json", or "memory".');
+}
+function normalizeCharset(charset) {
+    if (charset == null || charset === "") {
+        return "auto";
+    }
+    if (charset === "auto" || charset === "unicode" || charset === "ascii") {
+        return charset;
+    }
+    throw new TypeError('charset must be one of "auto", "unicode", or "ascii".');
+}
 export function normalizeMode(mode) {
     if (mode == null || mode === "") {
         return "auto";
@@ -45,8 +68,14 @@ export function normalizeConcurrency(value) {
     return concurrency;
 }
 export function normalizeOptions(options = {}) {
-    const output = options.output || process.stderr;
-    const renderer = options.renderer || "auto";
+    const output = options.output ?? process.stderr;
+    if (typeof output.write !== "function") {
+        throw new TypeError("output must provide a write(chunk) function.");
+    }
+    if (options.onRender != null && typeof options.onRender !== "function") {
+        throw new TypeError("onRender must be a function.");
+    }
+    const renderer = normalizeRenderer(options.renderer);
     const unit = options.unit || "item";
     const interval = isFiniteNumber(options.interval) ? Math.max(16, options.interval) : DEFAULT_INTERVAL_MS;
     return {
@@ -71,7 +100,7 @@ export function normalizeOptions(options = {}) {
         minElapsedMsForEta: isFiniteNumber(options.minElapsedMsForEta)
             ? Math.max(0, options.minElapsedMsForEta)
             : DEFAULT_MIN_ETA_ELAPSED_MS,
-        charset: chooseCharset(options, output),
+        charset: chooseCharset({ ...options, charset: normalizeCharset(options.charset) }, output),
         postfix: options.postfix ? cloneData(options.postfix) : undefined,
         spinnerFrames: Array.isArray(options.spinnerFrames) && options.spinnerFrames.length > 0
             ? options.spinnerFrames.map(String)

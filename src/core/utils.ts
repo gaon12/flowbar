@@ -123,11 +123,25 @@ function codePointWidth(codePoint: number): number {
   return 1;
 }
 
+const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+const emojiClusterPattern = /\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3/u;
+
+function graphemeWidth(value: string): number {
+  if (emojiClusterPattern.test(value)) {
+    return 2;
+  }
+  let width = 0;
+  for (const char of value) {
+    width = Math.max(width, codePointWidth(char.codePointAt(0) ?? 0));
+  }
+  return width;
+}
+
 export function displayWidth(value: unknown): number {
   const plain = stripAnsi(value);
   let width = 0;
-  for (const char of plain) {
-    width += codePointWidth(char.codePointAt(0) ?? 0);
+  for (const { segment } of graphemeSegmenter.segment(plain)) {
+    width += graphemeWidth(segment);
   }
   return width;
 }
@@ -136,6 +150,26 @@ function readAnsiSequence(text: string, start: number): string | undefined {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape parsing requires the ESC control character.
   const match = /^\u001B\[[0-?]*[ -/]*[@-~]/.exec(text.slice(start));
   return match?.[0];
+}
+
+function displayTokens(text: string): Array<{ text: string; width: number }> {
+  const tokens: Array<{ text: string; width: number }> = [];
+  for (let index = 0; index < text.length; ) {
+    const ansi = readAnsiSequence(text, index);
+    if (ansi) {
+      tokens.push({ text: ansi, width: 0 });
+      index += ansi.length;
+      continue;
+    }
+    const nextEscape = text.indexOf("\u001B", index);
+    const end = nextEscape === -1 ? text.length : nextEscape === index ? index + 1 : nextEscape;
+    const plain = text.slice(index, end);
+    for (const { segment } of graphemeSegmenter.segment(plain)) {
+      tokens.push({ text: segment, width: graphemeWidth(segment) });
+    }
+    index += plain.length;
+  }
+  return tokens;
 }
 
 export function truncateDisplay(value: unknown, maxWidth: number): string {
@@ -152,22 +186,12 @@ export function truncateDisplay(value: unknown, maxWidth: number): string {
   let result = "";
   let width = 0;
   const targetWidth = Math.max(0, maxWidth - 1);
-  for (let index = 0; index < text.length; ) {
-    const ansi = readAnsiSequence(text, index);
-    if (ansi) {
-      result += ansi;
-      index += ansi.length;
-      continue;
-    }
-    const codePoint = text.codePointAt(index) ?? 0;
-    const char = String.fromCodePoint(codePoint);
-    const charWidth = codePointWidth(codePoint);
-    if (width + charWidth > targetWidth) {
+  for (const token of displayTokens(text)) {
+    if (width + token.width > targetWidth) {
       break;
     }
-    result += char;
-    width += charWidth;
-    index += char.length;
+    result += token.text;
+    width += token.width;
   }
   return `${result}…`;
 }

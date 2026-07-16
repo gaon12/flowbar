@@ -211,6 +211,9 @@ export class ProgressBar {
         if (this.totalValue != null) {
             this.normalizedOptions.mode = "determinate";
         }
+        else if (this.normalizedOptions.mode === "determinate") {
+            this.normalizedOptions.mode = "auto";
+        }
         this.updatedAtValue = now();
         this.syncAnimationTimer();
         this.render(true);
