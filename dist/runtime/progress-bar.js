@@ -2,12 +2,7 @@ import { normalizeMode, normalizeOptions } from "../core/options.js";
 import { cloneData, readonlySnapshot } from "../core/snapshot.js";
 import { assertFiniteNumber, normalizeOptionalNonNegativeNumber, now, safeMessage } from "../core/utils.js";
 import { createRenderer } from "../rendering/renderers.js";
-let nextProgressBarId = 1;
-function allocateProgressBarId() {
-    const id = nextProgressBarId;
-    nextProgressBarId += 1;
-    return id;
-}
+import { allocateProgressBarId, notifyProgressBarClose } from "./lifecycle.js";
 export class ProgressBar {
     id;
     normalizedOptions;
@@ -284,8 +279,17 @@ export class ProgressBar {
             this.normalizedOptions.signal.removeEventListener("abort", this.abortHandler);
             this.abortHandler = undefined;
         }
-        this.renderer.finalize(this, state, safeMessage(message), leave ?? this.normalizedOptions.leave);
-        this.renderer.dispose?.();
+        try {
+            this.renderer.finalize(this, state, safeMessage(message), leave ?? this.normalizedOptions.leave);
+        }
+        finally {
+            try {
+                this.renderer.dispose();
+            }
+            finally {
+                notifyProgressBarClose(this);
+            }
+        }
         return this;
     }
 }

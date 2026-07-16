@@ -99,6 +99,7 @@ export type FlowbarStreamOptions = FlowbarOptions & {
 export type FlowbarMapper<T, R> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => R | Promise<R>;
 export type FlowbarHandler<T> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => void | Promise<void>;
 export type FlowbarGroup = {
+    readonly size: number;
     create(options?: FlowbarOptions): ProgressBar;
     wait(options?: FlowbarOptions): ProgressBar;
     close(): void;
