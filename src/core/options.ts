@@ -17,6 +17,8 @@ import {
   isFiniteNumber,
 } from "./utils.js";
 
+export const MAX_CONCURRENCY = 1024;
+
 export function normalizeMode(mode: unknown): FlowbarMode {
   if (mode == null || mode === "") {
     return "auto";
@@ -51,9 +53,15 @@ export function normalizeConcurrency(value: unknown): number {
   if (value == null) {
     return 1;
   }
-  const concurrency = Math.floor(assertFiniteNumber(value, "concurrency"));
+  const concurrency = assertFiniteNumber(value, "concurrency");
+  if (!Number.isInteger(concurrency)) {
+    throw new RangeError("concurrency must be an integer.");
+  }
   if (concurrency < 1) {
     throw new RangeError("concurrency must be greater than or equal to 1.");
+  }
+  if (concurrency > MAX_CONCURRENCY) {
+    throw new RangeError(`concurrency must be less than or equal to ${MAX_CONCURRENCY}.`);
   }
   return concurrency;
 }

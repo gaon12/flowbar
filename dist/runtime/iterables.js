@@ -98,20 +98,44 @@ async function closeIterator(iterator) {
     }
 }
 async function runWithProgress(input, handler, options, collectResults) {
-    const total = options.total ?? inferTotal(input);
+    const inferredTotal = inferTotal(input);
+    const total = options.total ?? inferredTotal;
     const concurrency = normalizeConcurrency(options.concurrency);
+    const workerCount = inferredTotal == null ? concurrency : Math.min(concurrency, inferredTotal);
     const bar = createProgressBar({ ...options, total });
     const iterator = toAsyncIterator(input);
+    const executionController = new AbortController();
     const results = [];
     let nextIndex = 0;
     let iteratorLock = Promise.resolve();
     let stopped = false;
+    let firstError;
+    let hasError = false;
+    const abortFromCaller = () => {
+        executionController.abort(options.signal?.reason);
+    };
+    if (options.signal?.aborted) {
+        abortFromCaller();
+    }
+    else {
+        options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+    }
+    function stop(error) {
+        if (!hasError) {
+            firstError = error;
+            hasError = true;
+        }
+        stopped = true;
+        if (!executionController.signal.aborted) {
+            executionController.abort(error);
+        }
+    }
     async function nextItem() {
         const run = iteratorLock.then(async () => {
             if (stopped) {
                 return { done: true, value: undefined, index: -1 };
             }
-            ensureNotAborted(options.signal);
+            ensureNotAborted(executionController.signal);
             const index = nextIndex;
             const result = await iterator.next();
             if (result.done) {
@@ -124,26 +148,43 @@ async function runWithProgress(input, handler, options, collectResults) {
         return run;
     }
     async function worker() {
-        for (;;) {
-            const item = await nextItem();
-            if (item.done) {
-                return;
+        try {
+            for (;;) {
+                const item = await nextItem();
+                if (item.done) {
+                    return;
+                }
+                const mapped = await handler(item.value, item.index, bar, executionController.signal);
+                ensureNotAborted(executionController.signal);
+                if (collectResults) {
+                    results[item.index] = mapped;
+                }
+                bar.increment(1);
             }
-            const mapped = await handler(item.value, item.index, bar);
-            if (collectResults) {
-                results[item.index] = mapped;
-            }
-            bar.increment(1);
+        }
+        catch (error) {
+            stop(error);
+            throw error;
         }
     }
     try {
-        await Promise.all(Array.from({ length: concurrency }, () => worker()));
+        ensureNotAborted(executionController.signal);
+        const workers = Array.from({ length: workerCount }, () => worker());
+        await Promise.allSettled(workers);
+        if (hasError) {
+            throw firstError;
+        }
         bar.succeed();
         return collectResults ? results : undefined;
     }
     catch (error) {
         stopped = true;
-        await closeIterator(iterator);
+        try {
+            await closeIterator(iterator);
+        }
+        catch {
+            // Preserve the handler or abort error that caused shutdown.
+        }
         if (isAbortErrorLike(error)) {
             bar.cancel("aborted");
         }
@@ -151,6 +192,9 @@ async function runWithProgress(input, handler, options, collectResults) {
             bar.fail(error);
         }
         throw error;
+    }
+    finally {
+        options.signal?.removeEventListener("abort", abortFromCaller);
     }
 }
 export async function mapWithProgress(input, mapper, options = {}) {

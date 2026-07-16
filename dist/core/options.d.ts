@@ -1,4 +1,5 @@
 import type { FlowbarAnimation, FlowbarMode, FlowbarOptions, FlowbarPreset, RequiredNormalizedFlowbarOptions, WritableLike } from "../types.js";
+export declare const MAX_CONCURRENCY = 1024;
 export declare function normalizeMode(mode: unknown): FlowbarMode;
 export declare function normalizeAnimation(animation: unknown): FlowbarAnimation;
 export declare function normalizePreset(preset: unknown): FlowbarPreset;

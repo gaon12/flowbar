@@ -98,8 +98,8 @@ export type FlowbarMapOptions = FlowbarOptions & {
   concurrency?: number;
 };
 
-export type FlowbarMapper<T, R> = (item: T, index: number, bar: ProgressBar) => R | Promise<R>;
-export type FlowbarHandler<T> = (item: T, index: number, bar: ProgressBar) => void | Promise<void>;
+export type FlowbarMapper<T, R> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => R | Promise<R>;
+export type FlowbarHandler<T> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => void | Promise<void>;
 
 export type FlowbarGroup = {
   create(options?: FlowbarOptions): ProgressBar;

@@ -127,21 +127,46 @@ async function runWithProgress<T, R>(
   collectResults: boolean,
   // biome-ignore lint/suspicious/noConfusingVoidType: overload implementation covers both collecting and non-collecting calls.
 ): Promise<R[] | void> {
-  const total = options.total ?? inferTotal(input);
+  const inferredTotal = inferTotal(input);
+  const total = options.total ?? inferredTotal;
   const concurrency = normalizeConcurrency(options.concurrency);
+  const workerCount = inferredTotal == null ? concurrency : Math.min(concurrency, inferredTotal);
   const bar = createProgressBar({ ...options, total });
   const iterator = toAsyncIterator(input);
+  const executionController = new AbortController();
   const results: R[] = [];
   let nextIndex = 0;
   let iteratorLock: Promise<unknown> = Promise.resolve();
   let stopped = false;
+  let firstError: unknown;
+  let hasError = false;
+
+  const abortFromCaller = () => {
+    executionController.abort(options.signal?.reason);
+  };
+  if (options.signal?.aborted) {
+    abortFromCaller();
+  } else {
+    options.signal?.addEventListener("abort", abortFromCaller, { once: true });
+  }
+
+  function stop(error: unknown): void {
+    if (!hasError) {
+      firstError = error;
+      hasError = true;
+    }
+    stopped = true;
+    if (!executionController.signal.aborted) {
+      executionController.abort(error);
+    }
+  }
 
   async function nextItem(): Promise<WorkItem<T>> {
     const run: Promise<WorkItem<T>> = iteratorLock.then(async (): Promise<WorkItem<T>> => {
       if (stopped) {
         return { done: true, value: undefined, index: -1 };
       }
-      ensureNotAborted(options.signal);
+      ensureNotAborted(executionController.signal);
       const index = nextIndex;
       const result = await iterator.next();
       if (result.done) {
@@ -155,32 +180,49 @@ async function runWithProgress<T, R>(
   }
 
   async function worker(): Promise<void> {
-    for (;;) {
-      const item = await nextItem();
-      if (item.done) {
-        return;
+    try {
+      for (;;) {
+        const item = await nextItem();
+        if (item.done) {
+          return;
+        }
+        const mapped = await handler(item.value, item.index, bar, executionController.signal);
+        ensureNotAborted(executionController.signal);
+        if (collectResults) {
+          results[item.index] = mapped as R;
+        }
+        bar.increment(1);
       }
-      const mapped = await handler(item.value, item.index, bar);
-      if (collectResults) {
-        results[item.index] = mapped as R;
-      }
-      bar.increment(1);
+    } catch (error) {
+      stop(error);
+      throw error;
     }
   }
 
   try {
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    ensureNotAborted(executionController.signal);
+    const workers = Array.from({ length: workerCount }, () => worker());
+    await Promise.allSettled(workers);
+    if (hasError) {
+      throw firstError;
+    }
     bar.succeed();
     return collectResults ? results : undefined;
   } catch (error) {
     stopped = true;
-    await closeIterator(iterator);
+    try {
+      await closeIterator(iterator);
+    } catch {
+      // Preserve the handler or abort error that caused shutdown.
+    }
     if (isAbortErrorLike(error)) {
       bar.cancel("aborted");
     } else {
       bar.fail(error);
     }
     throw error;
+  } finally {
+    options.signal?.removeEventListener("abort", abortFromCaller);
   }
 }
 
