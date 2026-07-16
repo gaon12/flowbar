@@ -1,7 +1,7 @@
 import { Transform } from "node:stream";
-import type { FlowbarGroup, FlowbarOptions, FlowbarTaskApi } from "../types.js";
+import type { FlowbarGroup, FlowbarOptions, FlowbarStreamOptions, FlowbarTaskApi } from "../types.js";
 import { type ProgressBar } from "./progress-bar.js";
-export declare function streamWithProgress(options?: FlowbarOptions): Transform & {
+export declare function streamWithProgress(options?: FlowbarStreamOptions): Transform & {
     flowbar: ProgressBar;
 };
 export declare function createGroup(options?: FlowbarOptions): FlowbarGroup;

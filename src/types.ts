@@ -98,6 +98,10 @@ export type FlowbarMapOptions = FlowbarOptions & {
   concurrency?: number;
 };
 
+export type FlowbarStreamOptions = FlowbarOptions & {
+  objectMode?: boolean;
+};
+
 export type FlowbarMapper<T, R> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => R | Promise<R>;
 export type FlowbarHandler<T> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => void | Promise<void>;
 
@@ -137,7 +141,7 @@ export interface FlowbarClient {
     handler: FlowbarHandler<T>,
     options?: FlowbarMapOptions,
   ): Promise<void>;
-  stream(options?: FlowbarOptions): Transform & { flowbar: ProgressBar };
+  stream(options?: FlowbarStreamOptions): Transform & { flowbar: ProgressBar };
   group(options?: FlowbarOptions): FlowbarGroup;
   task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Promise<T>, options?: FlowbarOptions): Promise<T>;
   configure(defaultOptions?: FlowbarOptions): FlowbarClient;

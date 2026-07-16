@@ -116,6 +116,31 @@ test("stream mode increments by byte length", async () => {
   assert.deepEqual(chunks, ["abc", "def"]);
 });
 
+test("stream byte mode counts UTF-8 strings as bytes", async () => {
+  const progress = stream({ total: 6, unit: "byte", renderer: "silent" });
+  progress.resume();
+  progress.end("한글", "utf8");
+
+  await finished(progress);
+  assert.equal(progress.flowbar.snapshot().current, 6);
+});
+
+test("stream object mode counts items and rejects objects in byte mode", async () => {
+  const itemProgress = stream({ objectMode: true, renderer: "silent" });
+  itemProgress.resume();
+  itemProgress.write({ id: 1 });
+  itemProgress.end({ id: 2 });
+  await finished(itemProgress);
+
+  assert.equal(itemProgress.flowbar.options.unit, "item");
+  assert.equal(itemProgress.flowbar.snapshot().current, 2);
+
+  const byteProgress = stream({ objectMode: true, unit: "byte", renderer: "silent" });
+  byteProgress.resume();
+  byteProgress.end({ id: 1 });
+  await assert.rejects(finished(byteProgress), /expects string or binary chunks/);
+});
+
 test("named ProgressBar export is available", () => {
   const bar = new ProgressBar({ renderer: "silent" });
   assert.equal(typeof bar.increment, "function");

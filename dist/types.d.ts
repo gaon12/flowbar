@@ -89,6 +89,9 @@ export type RequiredNormalizedFlowbarOptions = FlowbarOptions & {
 export type FlowbarMapOptions = FlowbarOptions & {
     concurrency?: number;
 };
+export type FlowbarStreamOptions = FlowbarOptions & {
+    objectMode?: boolean;
+};
 export type FlowbarMapper<T, R> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => R | Promise<R>;
 export type FlowbarHandler<T> = (item: T, index: number, bar: ProgressBar, signal: AbortSignal) => void | Promise<void>;
 export type FlowbarGroup = {
@@ -111,7 +114,7 @@ export interface FlowbarClient {
     wait(options?: FlowbarOptions): ProgressBar;
     map<T, R>(input: Iterable<T> | AsyncIterable<T>, mapper: FlowbarMapper<T, R>, options?: FlowbarMapOptions): Promise<R[]>;
     each<T>(input: Iterable<T> | AsyncIterable<T>, handler: FlowbarHandler<T>, options?: FlowbarMapOptions): Promise<void>;
-    stream(options?: FlowbarOptions): Transform & {
+    stream(options?: FlowbarStreamOptions): Transform & {
         flowbar: ProgressBar;
     };
     group(options?: FlowbarOptions): FlowbarGroup;
