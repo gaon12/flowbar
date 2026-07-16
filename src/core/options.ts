@@ -6,6 +6,7 @@ import type {
   RequiredNormalizedFlowbarOptions,
   WritableLike,
 } from "../types.js";
+import { cloneData } from "./snapshot.js";
 import {
   assertFiniteNumber,
   chooseCharset,
@@ -94,6 +95,7 @@ export function normalizeOptions(options: FlowbarOptions = {}): RequiredNormaliz
       ? Math.max(0, options.minElapsedMsForEta)
       : DEFAULT_MIN_ETA_ELAPSED_MS,
     charset: chooseCharset(options, output),
+    postfix: options.postfix ? cloneData(options.postfix) : undefined,
     spinnerFrames:
       Array.isArray(options.spinnerFrames) && options.spinnerFrames.length > 0
         ? options.spinnerFrames.map(String)

@@ -1,4 +1,4 @@
-import type { FlowbarCloseOptions, FlowbarMode, FlowbarOptions, FlowbarSnapshot, RequiredNormalizedFlowbarOptions } from "../types.js";
+import type { FlowbarCloseOptions, FlowbarMode, FlowbarOptions, FlowbarOptionsSnapshot, FlowbarSnapshot } from "../types.js";
 export declare class ProgressBar {
     readonly id: number;
     private readonly normalizedOptions;
@@ -16,11 +16,11 @@ export declare class ProgressBar {
     private abortHandler;
     private animationTimer;
     constructor(options?: FlowbarOptions);
-    get options(): Readonly<RequiredNormalizedFlowbarOptions>;
+    get options(): FlowbarOptionsSnapshot;
     get current(): number;
     get total(): number | undefined;
     get status(): string;
-    get postfix(): Record<string, unknown>;
+    get postfix(): Readonly<Record<string, unknown>>;
     get startedAt(): number;
     get updatedAt(): number;
     get frameIndex(): number;

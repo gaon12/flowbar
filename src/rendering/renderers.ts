@@ -1,4 +1,5 @@
 import { getTerminalWidth } from "../core/options.js";
+import { safeJsonStringify } from "../core/snapshot.js";
 import { now, truncateDisplay } from "../core/utils.js";
 import type { ProgressBar } from "../runtime/progress-bar.js";
 import type { Renderer, RendererFinishState, RequiredNormalizedFlowbarOptions, WritableLike } from "../types.js";
@@ -81,6 +82,7 @@ class PlainRenderer implements Renderer {
 
 class JsonRenderer implements Renderer {
   readonly options: RequiredNormalizedFlowbarOptions;
+  private lastWriteAt = 0;
 
   constructor(options: RequiredNormalizedFlowbarOptions) {
     this.options = options;
@@ -88,9 +90,14 @@ class JsonRenderer implements Renderer {
   register(bar: ProgressBar): void {
     this.update(bar, true);
   }
-  update(bar: ProgressBar, _force = false): void {
+  update(bar: ProgressBar, force = false): void {
+    const currentTime = now();
+    if (!force && currentTime - this.lastWriteAt < this.options.interval) {
+      return;
+    }
+    this.lastWriteAt = currentTime;
     const snapshot = bar.snapshot();
-    const line = JSON.stringify({ type: "progress", snapshot });
+    const line = safeJsonStringify({ type: "progress", snapshot });
     this.options.output.write(`${line}\n`);
     this.options.onRender?.(line, snapshot);
   }
@@ -99,12 +106,12 @@ class JsonRenderer implements Renderer {
       return;
     }
     const snapshot = bar.snapshot();
-    const line = JSON.stringify({ type: "final", state, message, snapshot });
+    const line = safeJsonStringify({ type: "final", state, message, snapshot });
     this.options.output.write(`${line}\n`);
     this.options.onRender?.(line, snapshot);
   }
   log(_bar: ProgressBar, level: "info" | "warn" | "error", message: string): void {
-    const line = JSON.stringify({ type: "log", level, message });
+    const line = safeJsonStringify({ type: "log", level, message });
     this.options.output.write(`${line}\n`);
     this.options.onRender?.(line, undefined);
   }
@@ -116,7 +123,7 @@ const terminalHubs = new WeakMap<WritableLike, TerminalHub>();
 class TerminalHub {
   readonly output: WritableLike;
   private readonly options: RequiredNormalizedFlowbarOptions;
-  private readonly entries = new Map<number, ProgressBar>();
+  private readonly entries = new Map<number, { bar: ProgressBar; options: RequiredNormalizedFlowbarOptions }>();
   private renderedLineCount = 0;
   private disposed = false;
   private refCount = 0;
@@ -144,25 +151,31 @@ class TerminalHub {
     }
     return false;
   }
-  register(bar: ProgressBar): void {
-    this.entries.set(bar.id, bar);
+  register(bar: ProgressBar, options: RequiredNormalizedFlowbarOptions): void {
+    this.entries.set(bar.id, { bar, options });
     this.render(true);
   }
-  update(bar: ProgressBar, force = false): void {
-    this.render(force, bar.options.interval);
+  update(force: boolean, options: RequiredNormalizedFlowbarOptions): void {
+    this.render(force, options.interval);
   }
-  finalize(bar: ProgressBar, state: RendererFinishState, message: string, leave: boolean): void {
+  finalize(
+    bar: ProgressBar,
+    state: RendererFinishState,
+    message: string,
+    leave: boolean,
+    options: RequiredNormalizedFlowbarOptions,
+  ): void {
     this.entries.delete(bar.id);
-    const width = getTerminalWidth(this.output, bar.options);
+    const width = getTerminalWidth(this.output, options);
     const line = buildFinalLine(bar.snapshot(), state, message, width);
     if (leave) {
-      this.safeWriteLine(line, bar.options);
+      this.safeWriteLine(line, options);
     } else {
       this.render(true);
     }
   }
-  log(bar: ProgressBar, level: "info" | "warn" | "error", message: string): void {
-    this.safeWriteLine(`${level}: ${message}`, bar.options);
+  log(level: "info" | "warn" | "error", message: string, options: RequiredNormalizedFlowbarOptions): void {
+    this.safeWriteLine(`${level}: ${message}`, options);
   }
   dispose(): void {
     if (this.disposed) {
@@ -209,8 +222,8 @@ class TerminalHub {
       return;
     }
     this.lastRenderAt = currentTime;
-    const bars = Array.from(this.entries.values()).filter((bar) => !bar.closed);
-    const lines = bars.map((bar) => buildLine(bar.snapshot(), getTerminalWidth(this.output, bar.options)));
+    const bars = Array.from(this.entries.values()).filter(({ bar }) => !bar.closed);
+    const lines = bars.map(({ bar, options }) => buildLine(bar.snapshot(), getTerminalWidth(this.output, options)));
     if (lines.length === 0) {
       this.deleteLiveRegion();
       return;
@@ -257,16 +270,16 @@ class TerminalRenderer implements Renderer {
     this.hub = hub;
   }
   register(bar: ProgressBar): void {
-    this.hub.register(bar);
+    this.hub.register(bar, this.options);
   }
-  update(bar: ProgressBar, force = false): void {
-    this.hub.update(bar, force);
+  update(_bar: ProgressBar, force = false): void {
+    this.hub.update(force, this.options);
   }
   finalize(bar: ProgressBar, state: RendererFinishState, message: string, leave: boolean): void {
-    this.hub.finalize(bar, state, message, leave);
+    this.hub.finalize(bar, state, message, leave, this.options);
   }
-  log(bar: ProgressBar, level: "info" | "warn" | "error", message: string): void {
-    this.hub.log(bar, level, message);
+  log(_bar: ProgressBar, level: "info" | "warn" | "error", message: string): void {
+    this.hub.log(level, message, this.options);
   }
   dispose(): void {
     if (this.disposed) {

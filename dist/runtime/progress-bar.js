@@ -1,4 +1,5 @@
 import { normalizeMode, normalizeOptions } from "../core/options.js";
+import { cloneData, readonlySnapshot } from "../core/snapshot.js";
 import { assertFiniteNumber, normalizeOptionalNonNegativeNumber, now, safeMessage } from "../core/utils.js";
 import { createRenderer } from "../rendering/renderers.js";
 let nextProgressBarId = 1;
@@ -29,7 +30,7 @@ export class ProgressBar {
         this.currentValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.current, "current") ?? 0;
         this.totalValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.total, "total");
         this.statusValue = this.normalizedOptions.status;
-        this.postfixValue = { ...(this.normalizedOptions.postfix || {}) };
+        this.postfixValue = cloneData(this.normalizedOptions.postfix || {});
         this.startedAtValue = now();
         this.updatedAtValue = this.startedAtValue;
         this.lastRateAt = this.startedAtValue;
@@ -53,10 +54,11 @@ export class ProgressBar {
         this.syncAnimationTimer();
     }
     get options() {
-        const spinnerFrames = this.normalizedOptions.spinnerFrames
-            ? this.normalizedOptions.spinnerFrames.slice()
-            : undefined;
-        return { ...this.normalizedOptions, spinnerFrames };
+        const snapshot = { ...this.normalizedOptions };
+        delete snapshot.output;
+        delete snapshot.signal;
+        delete snapshot.onRender;
+        return readonlySnapshot(snapshot);
     }
     get current() {
         return this.currentValue;
@@ -68,7 +70,7 @@ export class ProgressBar {
         return this.statusValue;
     }
     get postfix() {
-        return { ...this.postfixValue };
+        return readonlySnapshot(this.postfixValue);
     }
     get startedAt() {
         return this.startedAtValue;
@@ -107,7 +109,7 @@ export class ProgressBar {
             total: this.totalValue,
             mode: this.getMode(),
             status: this.statusValue,
-            postfix: { ...this.postfixValue },
+            postfix: readonlySnapshot(this.postfixValue),
             frameIndex: this.frameIndexValue,
             options: this.options,
             timing: {
@@ -242,7 +244,7 @@ export class ProgressBar {
         if (this.closedValue) {
             return this;
         }
-        this.postfixValue = { ...(postfix || {}) };
+        this.postfixValue = cloneData(postfix || {});
         this.updatedAtValue = now();
         this.render(true);
         return this;

@@ -1,3 +1,4 @@
+import { cloneData } from "./snapshot.js";
 import { assertFiniteNumber, chooseCharset, clampNumber, DEFAULT_INTERVAL_MS, DEFAULT_MIN_ETA_ELAPSED_MS, DEFAULT_RATE_SMOOTHING, DEFAULT_TERMINAL_WIDTH, isFiniteNumber, } from "./utils.js";
 export const MAX_CONCURRENCY = 1024;
 export function normalizeMode(mode) {
@@ -71,6 +72,7 @@ export function normalizeOptions(options = {}) {
             ? Math.max(0, options.minElapsedMsForEta)
             : DEFAULT_MIN_ETA_ELAPSED_MS,
         charset: chooseCharset(options, output),
+        postfix: options.postfix ? cloneData(options.postfix) : undefined,
         spinnerFrames: Array.isArray(options.spinnerFrames) && options.spinnerFrames.length > 0
             ? options.spinnerFrames.map(String)
             : undefined,

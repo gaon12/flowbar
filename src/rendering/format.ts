@@ -16,9 +16,9 @@ import {
 import type {
   FlowbarAnimation,
   FlowbarCharset,
+  FlowbarOptionsSnapshot,
   FlowbarSnapshot,
   RendererFinishState,
-  RequiredNormalizedFlowbarOptions,
 } from "../types.js";
 
 function makeBar(width: number, ratio: number, charset: Exclude<FlowbarCharset, "auto">): string {
@@ -95,7 +95,7 @@ function clampDisplay(value: string, width: number): string {
   return truncateDisplay(value, width);
 }
 
-function colorize(value: string, code: number, options: Readonly<RequiredNormalizedFlowbarOptions>): string {
+function colorize(value: string, code: number, options: FlowbarOptionsSnapshot): string {
   if (!options.color) {
     return value;
   }

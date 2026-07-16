@@ -23,6 +23,37 @@ test("terminal renderer throttles tight update loops", () => {
   assert.ok(writes < 100, `expected throttled writes, saw ${writes}`);
 });
 
+test("JSON renderer throttles updates and serializes data-only snapshots", () => {
+  const chunks = [];
+  const output = {
+    write(chunk) {
+      chunks.push(String(chunk));
+    },
+  };
+  output.self = output;
+  const circularPostfix = { count: 1 };
+  circularPostfix.self = circularPostfix;
+  const bar = create({
+    total: 1000,
+    output,
+    postfix: circularPostfix,
+    renderer: "json",
+    interval: 80,
+  });
+
+  for (let index = 0; index < 1000; index += 1) {
+    bar.increment();
+  }
+  bar.succeed();
+
+  assert.ok(chunks.length < 100, `expected throttled JSON writes, saw ${chunks.length}`);
+  const events = chunks.map((chunk) => JSON.parse(chunk));
+  assert.equal(events[0].type, "progress");
+  assert.equal(events.at(-1).type, "final");
+  assert.equal("output" in events.at(-1).snapshot.options, false);
+  assert.equal(events.at(-1).snapshot.postfix.self, "[Circular]");
+});
+
 test("terminal renderer batches line repaint chunks with content", () => {
   const chunks = [];
   const output = {
