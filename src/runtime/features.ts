@@ -8,6 +8,7 @@ import type {
   FlowbarTaskApi,
 } from "../types.js";
 import { eachWithProgress } from "./iterables.js";
+import { onProgressBarClose } from "./lifecycle.js";
 import { createProgressBar, type ProgressBar } from "./progress-bar.js";
 
 function getChunkByteLength(chunk: unknown, encoding: BufferEncoding | "buffer"): number {
@@ -76,9 +77,15 @@ export function createGroup(options: FlowbarOptions = {}): FlowbarGroup {
   const bars = new Set<ProgressBar>();
   function track(bar: ProgressBar): ProgressBar {
     bars.add(bar);
+    onProgressBarClose(bar, () => {
+      bars.delete(bar);
+    });
     return bar;
   }
   return {
+    get size() {
+      return bars.size;
+    },
     create(childOptions: FlowbarOptions = {}) {
       const label = childOptions.label || groupOptions.label;
       return track(createProgressBar({ ...groupOptions, ...childOptions, label }));

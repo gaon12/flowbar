@@ -1,5 +1,6 @@
 import { Transform } from "node:stream";
 import { eachWithProgress } from "./iterables.js";
+import { onProgressBarClose } from "./lifecycle.js";
 import { createProgressBar } from "./progress-bar.js";
 function getChunkByteLength(chunk, encoding) {
     if (typeof chunk === "string") {
@@ -63,9 +64,15 @@ export function createGroup(options = {}) {
     const bars = new Set();
     function track(bar) {
         bars.add(bar);
+        onProgressBarClose(bar, () => {
+            bars.delete(bar);
+        });
         return bar;
     }
     return {
+        get size() {
+            return bars.size;
+        },
         create(childOptions = {}) {
             const label = childOptions.label || groupOptions.label;
             return track(createProgressBar({ ...groupOptions, ...childOptions, label }));

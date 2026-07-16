@@ -178,11 +178,16 @@ test("group.close closes tracked child bars", () => {
   const bars = group({ renderer: "silent" });
   const first = bars.create({ total: 2 });
   const second = bars.wait({ label: "wait" });
+  assert.equal(bars.size, 2);
+
+  first.succeed();
+  assert.equal(bars.size, 1);
 
   bars.close();
 
   assert.equal(first.closed, true);
   assert.equal(second.closed, true);
+  assert.equal(bars.size, 0);
 });
 
 test("task.progress keeps the root available for later steps", async () => {
