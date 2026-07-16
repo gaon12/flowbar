@@ -85,8 +85,8 @@ export async function task(label, handler, options = {}) {
             return stepHandler(root);
         },
         async progress(stepLabel, items, itemHandler, progressOptions = {}) {
-            root.close(undefined, { leave: false });
-            return eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
+            root.setStatus(stepLabel);
+            await eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
         },
     };
     try {

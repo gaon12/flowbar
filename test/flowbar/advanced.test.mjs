@@ -154,13 +154,20 @@ test("group.close closes tracked child bars", () => {
   assert.equal(second.closed, true);
 });
 
-test("task.progress transitions without leaving a root closed line", async () => {
+test("task.progress keeps the root available for later steps", async () => {
   const lines = [];
+  let root;
 
   await task(
     "deploy",
     async (task) => {
+      root = task.bar;
       await task.progress("upload", [1, 2], async () => {});
+      assert.equal(task.bar.closed, false);
+      await task.step("verify", async (bar) => {
+        assert.equal(bar, task.bar);
+        assert.equal(bar.status, "verify");
+      });
     },
     {
       renderer: "memory",
@@ -175,6 +182,8 @@ test("task.progress transitions without leaving a root closed line", async () =>
     false,
   );
   assert.ok(lines.some((line) => line.includes("upload")));
+  assert.ok(lines.some((line) => line.includes("verify")));
+  assert.equal(root.closed, true);
 });
 
 test("setTotal rejects NaN and preserves the previous total", () => {
