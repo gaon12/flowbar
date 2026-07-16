@@ -122,10 +122,11 @@ export type FlowbarTaskApi = {
 export interface FlowbarFunction {
   <T>(input: Iterable<T>, options?: FlowbarOptions): Iterable<T>;
   <T>(input: AsyncIterable<T>, options?: FlowbarOptions): AsyncIterable<T>;
+}
+
+export interface FlowbarClient {
   create(options?: FlowbarOptions): ProgressBar;
   wait(options?: FlowbarOptions): ProgressBar;
-  indeterminate(options?: FlowbarOptions): ProgressBar;
-  spinner(options?: FlowbarOptions): ProgressBar;
   map<T, R>(
     input: Iterable<T> | AsyncIterable<T>,
     mapper: FlowbarMapper<T, R>,
@@ -139,8 +140,7 @@ export interface FlowbarFunction {
   stream(options?: FlowbarOptions): Transform & { flowbar: ProgressBar };
   group(options?: FlowbarOptions): FlowbarGroup;
   task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Promise<T>, options?: FlowbarOptions): Promise<T>;
-  configure(defaultOptions?: FlowbarOptions): FlowbarFunction;
-  ProgressBar: typeof ProgressBar;
+  configure(defaultOptions?: FlowbarOptions): FlowbarClient;
 }
 
 export type RendererFinishState = "success" | "failure" | "cancelled" | "closed";

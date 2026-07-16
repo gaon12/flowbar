@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import flowbar from "../../dist/index.js";
+import { create, each, group, map, task, wait } from "../../dist/index.js";
 
 test("terminal renderer throttles tight update loops", () => {
   let writes = 0;
@@ -13,7 +13,7 @@ test("terminal renderer throttles tight update loops", () => {
     on() {},
     off() {},
   };
-  const bar = flowbar.create({ total: 1000, output, renderer: "terminal", interval: 80 });
+  const bar = create({ total: 1000, output, renderer: "terminal", interval: 80 });
 
   for (let index = 0; index < 1000; index += 1) {
     bar.increment();
@@ -34,7 +34,7 @@ test("terminal renderer batches line repaint chunks with content", () => {
     on() {},
     off() {},
   };
-  const bar = flowbar.create({ label: "paint", total: 2, output, renderer: "terminal" });
+  const bar = create({ label: "paint", total: 2, output, renderer: "terminal" });
 
   bar.setStatus("half");
   bar.succeed();
@@ -49,7 +49,7 @@ test("terminal renderer batches line repaint chunks with content", () => {
 
 test("determinate bar width stays stable across count and postfix changes", () => {
   const lines = [];
-  const bar = flowbar.create({
+  const bar = create({
     label: "stable",
     total: 100,
     current: 9,
@@ -88,19 +88,19 @@ test("determinate bars do not start idle animation timers", () => {
   };
 
   try {
-    const determinate = flowbar.create({ total: 10, renderer: "memory" });
-    const counting = flowbar.create({ current: 1, renderer: "memory" });
+    const determinate = create({ total: 10, renderer: "memory" });
+    const counting = create({ current: 1, renderer: "memory" });
     assert.equal(started, 0);
 
-    const wait = flowbar.wait({ renderer: "memory" });
+    const waiting = wait({ renderer: "memory" });
     assert.equal(started, 1);
 
-    wait.setTotal(2);
+    waiting.setTotal(2);
     assert.equal(cleared, 1);
 
     determinate.close();
     counting.close();
-    wait.close();
+    waiting.close();
   } finally {
     globalThis.setInterval = originalSetInterval;
     globalThis.clearInterval = originalClearInterval;
@@ -109,7 +109,7 @@ test("determinate bars do not start idle animation timers", () => {
 
 test("ASCII charset uses ASCII final markers", () => {
   const lines = [];
-  const bar = flowbar.create({
+  const bar = create({
     label: "ascii",
     total: 1,
     charset: "ascii",
@@ -128,7 +128,7 @@ test("ASCII charset uses ASCII final markers", () => {
 
 test("color option emits ANSI styling when enabled", () => {
   const lines = [];
-  const bar = flowbar.create({
+  const bar = create({
     label: "color",
     total: 1,
     color: true,
@@ -144,11 +144,11 @@ test("color option emits ANSI styling when enabled", () => {
 });
 
 test("group.close closes tracked child bars", () => {
-  const group = flowbar.group({ renderer: "silent" });
-  const first = group.create({ total: 2 });
-  const second = group.wait({ label: "wait" });
+  const bars = group({ renderer: "silent" });
+  const first = bars.create({ total: 2 });
+  const second = bars.wait({ label: "wait" });
 
-  group.close();
+  bars.close();
 
   assert.equal(first.closed, true);
   assert.equal(second.closed, true);
@@ -157,7 +157,7 @@ test("group.close closes tracked child bars", () => {
 test("task.progress transitions without leaving a root closed line", async () => {
   const lines = [];
 
-  await flowbar.task(
+  await task(
     "deploy",
     async (task) => {
       await task.progress("upload", [1, 2], async () => {});
@@ -178,7 +178,7 @@ test("task.progress transitions without leaving a root closed line", async () =>
 });
 
 test("setTotal rejects NaN and preserves the previous total", () => {
-  const bar = flowbar.create({ total: 2, renderer: "silent" });
+  const bar = create({ total: 2, renderer: "silent" });
 
   assert.throws(() => bar.setTotal(Number.NaN), /total must be a finite number/);
   assert.equal(bar.snapshot().total, 2);
@@ -199,7 +199,7 @@ test("map closes async iterators when a mapper fails", async () => {
 
   await assert.rejects(
     () =>
-      flowbar.map(
+      map(
         source(),
         async (value) => {
           if (value === 1) {
@@ -217,7 +217,7 @@ test("map closes async iterators when a mapper fails", async () => {
 
 test("each does not expose a result array and validates concurrency", async () => {
   const seen = [];
-  const result = await flowbar.each(
+  const result = await each(
     [1, 2, 3],
     async (value) => {
       seen.push(value);
@@ -228,7 +228,7 @@ test("each does not expose a result array and validates concurrency", async () =
   assert.equal(result, undefined);
   assert.deepEqual(seen.sort(), [1, 2, 3]);
   await assert.rejects(
-    () => flowbar.each([1], async () => {}, { renderer: "silent", concurrency: Number.NaN }),
+    () => each([1], async () => {}, { renderer: "silent", concurrency: Number.NaN }),
     /concurrency must be a finite number/,
   );
 });
