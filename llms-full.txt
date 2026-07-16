@@ -7,19 +7,19 @@ Use this file when a single LLM-readable context document is needed. For token s
 flowbar is a zero-dependency progress toolkit for modern Node.js.
 
 ```js
-import flowbar from "flowbar";
+import flowbar, { create, each, group, map, stream, task, wait } from "flowbar";
 ```
 
 ## API Routing
 
 - `flowbar(input, options)`: wrap `Iterable` or `AsyncIterable`; see `docs/api/flowbar.md`.
-- `flowbar.create(options)`: manual `ProgressBar`; see `docs/api/create.md`.
-- `flowbar.map(input, mapper, options)`: concurrent map with ordered results; see `docs/api/map.md`.
-- `flowbar.each(input, handler, options)`: concurrent processing with no result array; see `docs/api/map.md`.
-- `flowbar.stream(options)`: Node.js `Transform`; see `docs/api/stream.md`.
-- `flowbar.wait(options)`: indeterminate progress; see `docs/api/wait.md`.
-- `flowbar.group(options)`: group helper for multiple bars; see `docs/api/group.md`.
-- `flowbar.task(label, handler, options)`: multi-step workflows; see `docs/api/task.md`.
+- Named `create(options)`: manual `ProgressBar`; see `docs/api/create.md`.
+- Named `map(input, mapper, options)`: concurrent map with ordered results; see `docs/api/map.md`.
+- Named `each(input, handler, options)`: concurrent processing with no result array; see `docs/api/map.md`.
+- Named `stream(options)`: Node.js `Transform`; see `docs/api/stream.md`.
+- Named `wait(options)`: indeterminate progress; see `docs/api/wait.md`.
+- Named `group(options)`: group helper for multiple bars; see `docs/api/group.md`.
+- Named `task(label, handler, options)`: multi-step workflows; see `docs/api/task.md`.
 - TypeScript options and snapshots: see `docs/api/types.md`.
 - Renderer details: see `docs/terminal-behavior.md`.
 - Recipes: see `docs/recipes.md`.
@@ -48,7 +48,7 @@ for await (const item of flowbar(asyncItems, { label: "items", total })) {
 Concurrent map:
 
 ```js
-const results = await flowbar.map(items, async (item) => {
+const results = await map(items, async (item) => {
   return processItem(item);
 }, {
   label: "items",
@@ -59,7 +59,7 @@ const results = await flowbar.map(items, async (item) => {
 Concurrent each:
 
 ```js
-await flowbar.each(items, async (item) => {
+await each(items, async (item) => {
   await processItem(item);
 }, {
   label: "items",
@@ -70,7 +70,7 @@ await flowbar.each(items, async (item) => {
 Manual bar:
 
 ```js
-const bar = flowbar.create({ label: "job", total: 100 });
+const bar = create({ label: "job", total: 100 });
 bar.increment(10);
 bar.setPostfix({ phase: "download" });
 bar.succeed("done");
@@ -79,9 +79,9 @@ bar.succeed("done");
 Wait:
 
 ```js
-const wait = flowbar.wait({ label: "server", status: "starting", animation: "marquee" });
+const waiting = wait({ label: "server", status: "starting", animation: "marquee" });
 await startServer();
-wait.succeed("ready");
+waiting.succeed("ready");
 ```
 
 Stream:
@@ -89,7 +89,7 @@ Stream:
 ```js
 await pipeline(
   createReadStream(input),
-  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  stream({ label: "copy", total: size, unit: "byte" }),
   createWriteStream(output),
 );
 ```
@@ -97,7 +97,7 @@ await pipeline(
 Task:
 
 ```js
-await flowbar.task("deploy", async (task) => {
+await task("deploy", async (task) => {
   await task.step("prepare", async () => prepare());
   await task.progress("upload", files, async (file) => upload(file), {
     concurrency: 4,
@@ -109,17 +109,18 @@ await flowbar.task("deploy", async (task) => {
 
 - Default output is `stderr`.
 - Default renderer is `auto`.
-- TTY rendering updates a live region and throttles fast loops by `interval`.
+- TTY and JSON rendering throttle fast loops by `interval`.
 - CI, pipe, and non-TTY output use plain line rendering.
 - `map` returns ordered results.
 - `each` returns `undefined` and does not allocate a result array.
-- Mapper or handler failure closes the bar and calls async iterator `return()` when available.
-- `NaN` and `Infinity` are rejected for numeric state and concurrency.
+- Mapper or handler failure aborts the fourth-argument signal, awaits in-flight work, and calls async iterator `return()` when available.
+- `NaN` and `Infinity` are rejected for numeric state.
 - `total` and initial `current` must be non-negative.
-- `concurrency` must be at least 1.
-- ProgressBar public state is read-only; change state through methods.
-- `group.close()` closes tracked child bars that are still open.
-- `task.progress()` transitions to child progress without leaving a root `closed after ...` line.
+- `concurrency` must be an integer from 1 through 1024 and is capped to known input size.
+- ProgressBar public snapshot data is deeply isolated and excludes output/signal/callback capabilities.
+- Groups automatically release child references when each bar closes; `group.size` reports open children.
+- `task.progress()` keeps the root alive for later task steps.
+- Byte streams count encoded string bytes; object mode defaults to item counting.
 - `close(message, { leave: false })` suppresses the final line for that close call.
 - `charset: "ascii"` keeps progress and final markers ASCII-only.
 - `color: true` colors final state markers with ANSI.
@@ -139,6 +140,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm test
+npm run test:pty
 npm pack --dry-run
 ```
 

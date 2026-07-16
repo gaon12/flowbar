@@ -11,7 +11,7 @@ npm install flowbar
 ## 가장 작은 예제
 
 ```js
-import flowbar from "flowbar";
+import flowbar, { each, wait } from "flowbar";
 
 for (const item of flowbar([1, 2, 3], { label: "items" })) {
   await processItem(item);
@@ -21,7 +21,7 @@ for (const item of flowbar([1, 2, 3], { label: "items" })) {
 ## 비동기 작업
 
 ```js
-await flowbar.each(urls, async (url) => {
+await each(urls, async (url) => {
   await fetch(url);
 }, {
   label: "fetch",
@@ -32,14 +32,14 @@ await flowbar.each(urls, async (url) => {
 ## 남은 시간을 모르는 작업
 
 ```js
-const wait = flowbar.wait({
+const waiting = wait({
   label: "server",
   status: "starting",
   animation: "marquee",
 });
 
 await startServer();
-wait.succeed("ready");
+waiting.succeed("ready");
 ```
 
 ## 직접 검증

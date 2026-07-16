@@ -68,6 +68,20 @@ for await (const item of flowbar(items, { signal: controller.signal })) {
 
 `signal`이 abort되면 `AbortError`를 던지고 progress bar는 cancelled 상태로 종료됩니다.
 
+## Helper exports and configure
+
+기본 export에는 helper property가 없습니다. 수동 bar, concurrency, stream, task API는 `create`, `map`, `each`, `stream`, `wait`, `group`, `task` named export를 사용합니다.
+
+```js
+import flowbar, { configure, create } from "flowbar";
+
+const defaults = configure({ renderer: "silent", unit: "byte" });
+const bar = defaults.create({ total: 1024 });
+const direct = create({ total: 10 });
+```
+
+`configure(defaults)`는 callable function이 아니라 frozen `FlowbarClient` 객체를 반환합니다. iterable wrapping은 계속 default `flowbar(input, options)`를 사용합니다.
+
 ## Error and Cleanup
 
 반복문 본문에서 예외가 발생하면 wrapper는 bar를 failure 상태로 종료하고 예외를 다시 던집니다.

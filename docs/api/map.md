@@ -1,6 +1,6 @@
-# API: flowbar.map(input, mapper, options)
+# API: map(input, mapper, options) / each(input, handler, options)
 
-`flowbar.map`은 iterable 또는 async iterable을 concurrency 제한과 함께 처리하고, 각 항목이 완료될 때 progress를 증가시킵니다.
+`map` named export는 iterable 또는 async iterable을 concurrency 제한과 함께 처리하고, 각 항목이 완료될 때 progress를 증가시킵니다.
 
 ## When to Use
 
@@ -9,9 +9,9 @@
 - 입력 순서와 결과 순서를 맞춰야 할 때
 
 ```js
-import flowbar from "flowbar";
+import { each, map } from "flowbar";
 
-const results = await flowbar.map(
+const results = await map(
   files,
   async (file, index, bar) => {
     bar.setPostfix({ file });
@@ -32,19 +32,19 @@ const results = await flowbar.map(
 ## concurrency
 
 기본값은 `1`입니다.
-`concurrency`는 finite number이고 1 이상이어야 합니다.
+`concurrency`는 1부터 1024까지의 정수여야 합니다. 입력의 `length` 또는 `size`를 알 수 있으면 worker 수는 입력 크기 이하로 제한됩니다.
 
 ```js
-await flowbar.map(items, worker, { concurrency: 4 });
+await map(items, worker, { concurrency: 4 });
 ```
 
-## flowbar.each
+## each
 
-결과 배열이 필요 없으면 `flowbar.each`를 사용합니다.
+결과 배열이 필요 없으면 `each`를 사용합니다.
 `each`는 `undefined`를 반환하며 대량 작업에서 결과 배열을 만들지 않습니다.
 
 ```js
-await flowbar.each(files, async (file) => {
+await each(files, async (file) => {
   await upload(file);
 }, { concurrency: 8 });
 ```
@@ -54,7 +54,7 @@ await flowbar.each(files, async (file) => {
 ```js
 const controller = new AbortController();
 
-await flowbar.map(items, worker, {
+await map(items, worker, {
   concurrency: 8,
   signal: controller.signal,
 });
@@ -64,4 +64,5 @@ await flowbar.map(items, worker, {
 
 - mapper 또는 handler가 실패하면 bar는 failure 상태로 종료되고 원래 error를 다시 던집니다.
 - async iterator 입력에 `return()`이 있으면 실패 시 호출합니다.
-- 이미 실행 중인 concurrent mapper는 JavaScript promise semantics상 강제 중단하지 않습니다. 취소가 필요하면 `AbortSignal`을 mapper 내부 작업에도 전달합니다.
+- mapper/handler의 네 번째 인자는 내부 `AbortSignal`입니다. 첫 실패나 caller abort 때 signal이 abort됩니다.
+- 이미 실행 중인 promise를 강제로 중단할 수는 없으므로 handler는 signal에 협력해야 합니다. 반환 promise는 in-flight handler가 정리된 뒤 reject합니다.

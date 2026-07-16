@@ -7,13 +7,13 @@ These examples are meant to be copied into Node.js scripts and adjusted to your 
 ```js
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import flowbar from "flowbar";
+import { each } from "flowbar";
 
 const inputDir = "data";
 const outputDir = "out";
 const files = await readdir(inputDir);
 
-await flowbar.each(
+await each(
   files,
   async (file) => {
     const input = join(inputDir, file);
@@ -28,9 +28,9 @@ await flowbar.each(
 ## Call Many APIs
 
 ```js
-import flowbar from "flowbar";
+import { each } from "flowbar";
 
-await flowbar.each(
+await each(
   urls,
   async (url) => {
     const response = await fetch(url);
@@ -51,7 +51,7 @@ If a handler throws, the bar is finalized as a failure and the error is rethrown
 import { createWriteStream } from "node:fs";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
-import flowbar from "flowbar";
+import { stream } from "flowbar";
 
 const response = await fetch(url);
 if (!response.body) {
@@ -62,7 +62,7 @@ const total = Number(response.headers.get("content-length")) || undefined;
 
 await pipeline(
   Readable.fromWeb(response.body),
-  flowbar.stream({ label: "download", total, unit: "byte" }),
+  stream({ label: "download", total, unit: "byte" }),
   createWriteStream("download.bin"),
 );
 ```
@@ -73,7 +73,7 @@ When `content-length` is missing, the stream bar still counts transferred bytes.
 
 ```js
 import { spawn } from "node:child_process";
-import flowbar from "flowbar";
+import { task } from "flowbar";
 
 function run(command, args) {
   return new Promise((resolve, reject) => {
@@ -84,7 +84,7 @@ function run(command, args) {
   });
 }
 
-await flowbar.task("release", async (task) => {
+await task("release", async (task) => {
   await task.step("clean", () => run("npm", ["run", "clean"]));
   await task.step("build", () => run("npm", ["run", "build"]));
   await task.step("test", () => run("npm", ["test"]));
@@ -94,11 +94,11 @@ await flowbar.task("release", async (task) => {
 ## Run Migrations
 
 ```js
-import flowbar from "flowbar";
+import { each } from "flowbar";
 
 const rows = await db.query("select id from accounts where migrated = false");
 
-await flowbar.each(
+await each(
   rows,
   async (row) => {
     await migrateAccount(row.id);
@@ -112,9 +112,9 @@ If the total is unknown, omit `total` and flowbar will show counting progress.
 ## CI And Non-TTY Output
 
 ```js
-import flowbar from "flowbar";
+import { create } from "flowbar";
 
-const bar = flowbar.create({ label: "ci-safe", total: jobs.length });
+const bar = create({ label: "ci-safe", total: jobs.length });
 for (const job of jobs) {
   await run(job);
   bar.increment();

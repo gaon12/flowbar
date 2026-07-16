@@ -1,6 +1,6 @@
-# API: flowbar.wait(options)
+# API: wait(options)
 
-`flowbar.wait(options)`는 남은 예상 시간을 모르는 작업을 표시하는 indeterminate progress를 만듭니다.
+`wait(options)` named export는 남은 예상 시간을 모르는 작업을 표시하는 indeterminate progress를 만듭니다.
 
 ## When to Use
 
@@ -9,19 +9,19 @@
 - fake percent나 fake ETA를 보여 주면 오해가 생기는 작업일 때
 
 ```js
-import flowbar from "flowbar";
+import { wait } from "flowbar";
 
-const wait = flowbar.wait({
+const waiting = wait({
   label: "connect",
   status: "waiting",
   animation: "marquee",
 });
 
 await connectToServer();
-wait.succeed("connected");
+waiting.succeed("connected");
 ```
 
-`flowbar.indeterminate(options)`와 `flowbar.spinner(options)`는 `flowbar.wait(options)`의 별칭입니다.
+중복 별칭인 `indeterminate`와 `spinner`는 제공하지 않습니다. indeterminate 작업은 `wait(options)`를 사용합니다.
 
 ## animation
 
@@ -33,10 +33,10 @@ wait.succeed("connected");
 - `pulse`: 막대가 커졌다 작아지는 형태
 
 ```js
-flowbar.wait({ animation: "spinner" });
-flowbar.wait({ animation: "marquee" });
-flowbar.wait({ animation: "bounce" });
-flowbar.wait({ animation: "pulse" });
+wait({ animation: "spinner" });
+wait({ animation: "marquee" });
+wait({ animation: "bounce" });
+wait({ animation: "pulse" });
 ```
 
 ## fake ETA 금지
@@ -49,7 +49,7 @@ indeterminate mode는 전체 작업량을 모르므로 percent, current/total, r
 나중에 전체 작업량을 알게 되면 `setTotal()`을 호출해 determinate mode로 전환할 수 있습니다.
 
 ```js
-const bar = flowbar.wait({ label: "scan", animation: "marquee" });
+const bar = wait({ label: "scan", animation: "marquee" });
 
 const files = await discoverFiles();
 bar.setTotal(files.length);
@@ -64,6 +64,6 @@ bar.succeed("done");
 
 ## Notes
 
-- `flowbar.indeterminate(options)`와 `flowbar.spinner(options)`는 별칭입니다.
+- indeterminate 작업의 단일 진입점은 `wait(options)`입니다.
 - `status`는 `setStatus(status)`로 바꿀 수 있습니다.
 - animation timer는 bar 종료 시 정리됩니다.

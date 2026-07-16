@@ -5,7 +5,7 @@ flowbar is a zero-dependency progress toolkit for modern Node.js.
 Use this import:
 
 ```js
-import flowbar from "flowbar";
+import flowbar, { each, map, task, wait } from "flowbar";
 ```
 
 Important docs:
@@ -37,23 +37,23 @@ for (const item of flowbar(items, { label: "items" })) {
 ```
 
 ```js
-await flowbar.map(items, async (item) => processItem(item), {
+await map(items, async (item) => processItem(item), {
   label: "items",
   concurrency: 8,
 });
 ```
 
 ```js
-await flowbar.each(items, async (item) => processItem(item), {
+await each(items, async (item) => processItem(item), {
   label: "items",
   concurrency: 8,
 });
 ```
 
 ```js
-const wait = flowbar.wait({ label: "server", animation: "marquee" });
+const waiting = wait({ label: "server", animation: "marquee" });
 await startServer();
-wait.succeed("ready");
+waiting.succeed("ready");
 ```
 
 Rules:
@@ -61,8 +61,9 @@ Rules:
 - Use `map` when ordered results are needed.
 - Use `each` when results are not needed.
 - Do not fake percent or ETA for indeterminate tasks.
-- Numeric state and concurrency must be finite.
+- Concurrency must be an integer from 1 through 1024 and is capped to known input size.
 - ProgressBar public state is read-only; change state through methods.
-- Use `flowbar.task` for multi-step workflows and `task.progress` when a step has iterable progress.
+- Use named `task` for multi-step workflows; `task.progress` keeps the root alive for later steps.
+- Mapper/handler receives a cancellation signal as its fourth argument; rejection waits for in-flight cleanup.
 - `charset: "ascii"` keeps final markers ASCII-only; `color: true` colors final markers.
 - Use `renderer: "silent"` in tests.

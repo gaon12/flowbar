@@ -24,11 +24,12 @@ This file is the short entry point for humans and LLMs. Prefer the smallest API 
 ## Core Contract
 
 - Default import: `import flowbar from "flowbar";`
+- Helper API: use named imports such as `import { create, each, stream } from "flowbar";`.
 - Default output: `stderr`.
 - Default renderer: `auto`.
 - TTY renderer updates a live region and throttles fast update loops by `interval`.
 - CI, pipe, and non-TTY output use plain line rendering.
-- `flowbar.map` returns ordered results.
-- `flowbar.each` returns `undefined` and does not allocate a result array.
-- Mapper or handler failure closes the bar and calls async iterator `return()` when available.
+- `map` returns ordered results; `each` returns `undefined` and does not allocate a result array.
+- Concurrency is an integer from 1 through 1024 and is capped to a known input size.
+- Mapper or handler failure aborts its fourth-argument signal, awaits in-flight work, and calls async iterator `return()` when available.
 - Numeric runtime inputs must be finite. Negative totals and current values are rejected where they define stored progress state.

@@ -6,10 +6,12 @@ source는 strict TypeScript로 검사하고 `npm run build`에서 `dist/index.js
 ## 주요 타입
 
 ```ts
-import flowbar, {
+import {
   ProgressBar,
   FlowbarOptions,
+  FlowbarClient,
   FlowbarMapOptions,
+  FlowbarStreamOptions,
   FlowbarSnapshot,
   FlowbarMode,
   FlowbarAnimation,
@@ -61,18 +63,20 @@ type FlowbarOptions = {
 
 TypeScript 사용자가 아니어도 런타임 검증이 적용됩니다.
 
-- `total`, `current`, `update(value)`, `setTotal(total)`, `increment(delta)`, `concurrency`는 finite number여야 합니다.
+- numeric progress state는 finite number여야 하고, `concurrency`는 1부터 1024까지의 정수여야 합니다.
 - 저장되는 `total`과 초기 `current`는 0 이상이어야 합니다.
 - `update(value)`와 `increment(delta)` 결과 current는 0 아래로 내려가지 않습니다.
-- `mode`, `animation`, `preset`은 선언된 문자열 union만 허용합니다.
+- `mode`, `animation`, `preset`, `renderer`, `charset`은 선언된 문자열 union만 허용합니다.
 
 ## Important Types
 
-- `FlowbarFunction`: default export의 callable API와 static helpers
+- `FlowbarFunction`: iterable wrapper인 default callable export
+- `FlowbarClient`: `configure()`가 반환하는 non-callable helper 객체
 - `ProgressBar`: 수동 bar class
 - `FlowbarOptions`: 모든 renderer/helper 공통 옵션
 - `FlowbarCloseOptions`: `close(message, options)`의 호출 단위 종료 옵션
 - `FlowbarMapOptions`: `FlowbarOptions & { concurrency?: number }`
+- `FlowbarStreamOptions`: `FlowbarOptions & { objectMode?: boolean }`
 - `FlowbarSnapshot`: `snapshot()`과 `onRender`가 받는 상태 객체
 - `WritableLike`: custom output stream 최소 contract
 
@@ -91,4 +95,4 @@ type FlowbarCloseOptions = {
 `ProgressBar`는 `current`, `total`, `status`, `postfix`, `startedAt`, `updatedAt`, `frameIndex`, `closed`, `options`를 읽기용 getter로 제공합니다.
 외부 코드는 이 값을 직접 대입하지 않고, `increment`, `update`, `setTotal`, `setStatus`, `setPostfix`, `succeed`, `fail`, `cancel`, `close`를 사용해 상태를 변경합니다.
 
-`options` getter는 내부 옵션 객체가 아니라 읽기용 복사본을 반환하므로, 반환값을 변경해도 bar의 동작은 바뀌지 않습니다.
+`options` getter는 중첩 데이터를 복제하고 동결한 data-only snapshot입니다. `output`, `signal`, `onRender`는 snapshot과 JSON event에 포함되지 않습니다.
