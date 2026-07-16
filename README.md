@@ -6,7 +6,7 @@ flowbar is a progress toolkit for modern Node.js workflows. If Python has `tqdm`
 
 ```js
 import { pipeline } from "node:stream/promises";
-import flowbar from "flowbar";
+import flowbar, { each, stream, wait } from "flowbar";
 
 for (const file of flowbar(files, { label: "files" })) {
   await upload(file);
@@ -16,22 +16,24 @@ for await (const row of flowbar(readRows(), { label: "rows" })) {
   await save(row);
 }
 
-await flowbar.each(urls, async (url) => {
+await each(urls, async (url) => {
   await fetch(url);
 }, { label: "fetch", concurrency: 8 });
 
 await pipeline(
   input,
-  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  stream({ label: "copy", total: size, unit: "byte" }),
   output,
 );
 
-const wait = flowbar.wait({ label: "connect", status: "waiting" });
+const waiting = wait({ label: "connect", status: "waiting" });
 await connect();
-wait.succeed("connected");
+waiting.succeed("connected");
 ```
 
 The idea scales without changing tools: wrap an iterable, consume an async iterable, run bounded concurrency, track a byte stream, or show a wait state with one progress API.
+
+The default export is only the iterable wrapper. Helper APIs are named exports, so a callable function no longer doubles as a namespace. `configure(defaults)` returns a non-callable client object with the same helper methods.
 
 Node.js의 async iterable, promise concurrency, stream, indeterminate task까지 자연스럽게 다루는 zero-dependency progress toolkit입니다.
 
@@ -40,11 +42,11 @@ Node.js의 async iterable, promise concurrency, stream, indeterminate task까지
 ## 빠른 선택
 
 - iterable을 감싸려면 `flowbar(input, options)`
-- 결과 배열이 필요하면 `flowbar.map(input, mapper, options)`
-- 결과 배열이 필요 없으면 `flowbar.each(input, handler, options)`
-- 수동으로 값과 상태를 제어하려면 `flowbar.create(options)`
-- total을 모르는 대기 작업은 `flowbar.wait(options)`
-- Node.js byte stream은 `flowbar.stream(options)`
+- 결과 배열이 필요하면 named export `map(input, mapper, options)`
+- 결과 배열이 필요 없으면 named export `each(input, handler, options)`
+- 수동으로 값과 상태를 제어하려면 named export `create(options)`
+- total을 모르는 대기 작업은 named export `wait(options)`
+- Node.js byte stream은 named export `stream(options)`
 
 ## 특징
 
@@ -77,6 +79,7 @@ npm run typecheck
 npm run lint
 npm run build
 npm test
+npm run test:pty
 node --check dist/index.js
 npm pack --dry-run
 ```
@@ -112,9 +115,9 @@ for await (const job of flowbar(createJobs(), { label: "jobs", total: 3 })) {
 ## Concurrency map
 
 ```js
-import flowbar from "flowbar";
+import { each, map } from "flowbar";
 
-const results = await flowbar.map(
+const results = await map(
   files,
   async (file) => {
     return upload(file);
@@ -129,7 +132,7 @@ const results = await flowbar.map(
 결과 배열이 필요 없으면 `each`를 사용합니다.
 
 ```js
-await flowbar.each(files, async (file) => {
+await each(files, async (file) => {
   await upload(file);
 }, {
   label: "upload",
@@ -140,9 +143,9 @@ await flowbar.each(files, async (file) => {
 ## 수동 제어
 
 ```js
-import flowbar from "flowbar";
+import { create } from "flowbar";
 
-const bar = flowbar.create({ label: "manual", total: 100 });
+const bar = create({ label: "manual", total: 100 });
 
 bar.increment(10);
 bar.setPostfix({ phase: "download" });
@@ -155,9 +158,9 @@ bar.succeed("complete");
 남은 시간을 알 수 없을 때는 fake ETA를 표시하지 않습니다. 대신 상태, elapsed, 애니메이션을 보여 줍니다.
 
 ```js
-import flowbar from "flowbar";
+import { wait } from "flowbar";
 
-const wait = flowbar.wait({
+const waiting = wait({
   label: "connect",
   status: "waiting",
   animation: "marquee",
@@ -165,7 +168,7 @@ const wait = flowbar.wait({
 
 await connectToServer();
 
-wait.succeed("connected");
+waiting.succeed("connected");
 ```
 
 ## Stream byte progress
@@ -173,14 +176,14 @@ wait.succeed("connected");
 ```js
 import { createReadStream, createWriteStream, statSync } from "node:fs";
 import { pipeline } from "node:stream/promises";
-import flowbar from "flowbar";
+import { stream } from "flowbar";
 
 const input = "input.bin";
 const output = "output.bin";
 
 await pipeline(
   createReadStream(input),
-  flowbar.stream({
+  stream({
     label: "copy",
     total: statSync(input).size,
     unit: "byte",
@@ -192,9 +195,9 @@ await pipeline(
 ## Safe logging
 
 ```js
-import flowbar from "flowbar";
+import { create } from "flowbar";
 
-const bar = flowbar.create({ label: "build", total: 3 });
+const bar = create({ label: "build", total: 3 });
 
 bar.log("build started");
 bar.increment();
@@ -220,12 +223,15 @@ bar.succeed("done");
 
 ## Runtime contract
 
-- `total`, `current`, `update(value)`, `setTotal(total)`, `increment(delta)`, `concurrency`는 finite number여야 합니다.
+- `concurrency`는 1부터 1024까지의 정수이며, 알려진 입력 크기보다 많은 worker를 만들지 않습니다.
+- handler의 네 번째 인자는 첫 실패나 caller abort를 알리는 `AbortSignal`입니다. 반환 promise는 이미 실행 중인 handler가 정리된 뒤 reject합니다.
+- `unit: "byte"`는 문자열 chunk를 실제 encoding의 byte length로 계산합니다. `objectMode: true`의 기본 unit은 `"item"`입니다.
 - `total`, `current`, `setTotal(total)`은 음수를 허용하지 않습니다.
 - `setMode(mode)`는 `"auto"`, `"determinate"`, `"counting"`, `"indeterminate"`만 허용합니다.
 - `ProgressBar`의 공개 상태 필드는 getter로 노출되며 직접 대입으로 변경하지 않습니다. 상태 변경은 `increment`, `update`, `setTotal`, `setStatus`, `setPostfix`를 사용합니다.
 - `map`/`each` 처리 중 mapper 또는 handler가 실패하면 bar는 failure 상태가 되고 async iterator cleanup을 위해 `return()`을 호출합니다.
 - `each`는 대량 작업에서 불필요한 결과 배열을 만들지 않습니다.
+- JSON renderer도 `interval`을 적용하며, snapshot은 output/signal/callback을 제외한 깊은 읽기 전용 데이터입니다.
 
 ## 문서
 

@@ -6,13 +6,13 @@ flowbar is a progress toolkit for modern Node.js workflows. Existing progress li
 
 | Need | flowbar focus |
 | --- | --- |
-| Determinate progress bar | `flowbar(input)` and `flowbar.create({ total })` |
-| Spinner or unknown-duration work | `flowbar.wait()` and `flowbar.task()` |
+| Determinate progress bar | default `flowbar(input)` and named `create({ total })` |
+| Spinner or unknown-duration work | named `wait()` and `task()` |
 | Iterable wrapping | Sync iterables are wrapped without changing yielded values |
 | AsyncIterable wrapping | Async iterables are wrapped with the same default import |
-| Concurrency helper | `flowbar.map()` returns ordered results, `flowbar.each()` avoids result allocation |
-| Stream byte progress | `flowbar.stream({ unit: "byte" })` returns a Node.js `Transform` |
-| Multi-bar output | `flowbar.group()` shares one terminal live region |
+| Concurrency helper | named `map()` returns ordered results, `each()` avoids result allocation |
+| Stream byte progress | named `stream({ unit: "byte" })` returns a Node.js `Transform` |
+| Multi-bar output | named `group()` shares one terminal live region |
 | Safe logging | `bar.log()`, `bar.warn()`, and `bar.error()` preserve the live region |
 | CI and non-TTY output | `renderer: "auto"` falls back to plain output |
 | TypeScript declarations | Declarations are generated from strict TypeScript source |

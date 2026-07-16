@@ -19,7 +19,7 @@
 ## 기본 import
 
 ```js
-import flowbar from "flowbar";
+import flowbar, { create, each, map, stream, task, wait } from "flowbar";
 ```
 
 ## iterable
@@ -41,7 +41,7 @@ for await (const item of flowbar(asyncItems, { label: "items", total })) {
 ## concurrency
 
 ```js
-await flowbar.map(items, async (item) => {
+await map(items, async (item) => {
   return processItem(item);
 }, {
   label: "items",
@@ -52,7 +52,7 @@ await flowbar.map(items, async (item) => {
 Use `each` when no result array is needed:
 
 ```js
-await flowbar.each(items, async (item) => {
+await each(items, async (item) => {
   await processItem(item);
 }, {
   label: "items",
@@ -63,7 +63,7 @@ await flowbar.each(items, async (item) => {
 ## manual
 
 ```js
-const bar = flowbar.create({ label: "job", total: 100 });
+const bar = create({ label: "job", total: 100 });
 bar.increment(10);
 bar.succeed("done");
 ```
@@ -71,9 +71,9 @@ bar.succeed("done");
 ## wait / indeterminate
 
 ```js
-const wait = flowbar.wait({ label: "server", animation: "marquee" });
+const waiting = wait({ label: "server", animation: "marquee" });
 await startServer();
-wait.succeed("ready");
+waiting.succeed("ready");
 ```
 
 ## stream
@@ -81,7 +81,7 @@ wait.succeed("ready");
 ```js
 await pipeline(
   createReadStream(input),
-  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  stream({ label: "copy", total: size, unit: "byte" }),
   createWriteStream(output),
 );
 ```
@@ -89,7 +89,7 @@ await pipeline(
 ## task
 
 ```js
-await flowbar.task("deploy", async (task) => {
+await task("deploy", async (task) => {
   await task.step("prepare", async () => prepare());
   await task.progress("upload", files, async (file) => upload(file), {
     concurrency: 4,
@@ -103,13 +103,14 @@ await flowbar.task("deploy", async (task) => {
 - CLI의 실제 결과 출력과 progress 출력이 섞이지 않도록 기본 출력은 stderr를 사용합니다.
 - 터미널 렌더링 중에는 직접 `console.log`보다 `bar.log`를 우선 사용합니다.
 - 결과가 필요 없는 대량 작업에 `map`을 쓰지 않습니다. `each`를 사용합니다.
-- `NaN`, `Infinity`, 0 미만 total, 1 미만 concurrency를 넣지 않습니다.
+- `NaN`, `Infinity`, 0 미만 total, 1 미만 또는 1024 초과 concurrency를 넣지 않습니다.
 - mapper 실패 시 upstream cleanup이 필요하면 async iterator에 `return()`을 구현합니다.
 
 ## Runtime Contract
 
-- `flowbar.map` returns ordered results.
-- `flowbar.each` returns `undefined`.
+- Named export `map` returns ordered results.
+- Named export `each` returns `undefined`.
 - TTY rendering is throttled by `interval`.
-- Failed mapper/handler closes the bar and calls async iterator `return()` when available.
+- Failed mapper/handler aborts the fourth-argument signal, awaits in-flight work, and calls async iterator `return()` when available.
+- JSON rendering is throttled by `interval`, and snapshots exclude output/signal/callback capabilities.
 - `renderer: "silent"` is preferred in tests.

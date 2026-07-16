@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Split the default callable iterable wrapper from named helper exports and make `configure()` return a non-callable client.
+- Keep task root bars alive across child progress steps.
+- Count encoded string chunks as bytes and separate stream object mode from byte mode.
+- Bound concurrency, propagate a cooperative cancellation signal, and await in-flight cleanup on failure.
+- Deeply isolate data-only snapshots and throttle safe JSON progress events.
+- Release closed child bars from group tracking automatically.
+- Preserve grapheme clusters in terminal width calculation and fix total-clearing mode transitions.
+- Add real PTY coverage, including Windows ConPTY through PowerShell, resize bursts, narrow widths, Unicode, and flow control.
+
 ## 0.1.2
 
 - Split the source and tests into focused modules capped at 350 lines.

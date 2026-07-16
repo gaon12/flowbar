@@ -1,13 +1,13 @@
-# API: flowbar.task(label, handler, options)
+# API: task(label, handler, options)
 
-`flowbar.task()`는 여러 단계로 이루어진 작업을 하나의 task 흐름으로 표현합니다. 준비 단계는 root bar로 보여 주고, `task.progress()`를 사용하면 하위 progress 단계로 자연스럽게 전환합니다.
+`task()` named export는 여러 단계로 이루어진 작업을 하나의 task 흐름으로 표현합니다. root bar는 전체 task가 끝날 때까지 살아 있습니다.
 
 ## Basic Usage
 
 ```js
-import flowbar from "flowbar";
+import { task } from "flowbar";
 
-await flowbar.task("deploy", async (task) => {
+await task("deploy", async (task) => {
   await task.step("prepare", async () => {
     await prepare();
   });
@@ -45,7 +45,7 @@ await task.indeterminate("connect", async () => {
 
 ### task.progress(label, items, handler, options)
 
-Root bar를 중간 최종 줄 없이 닫고, `flowbar.each()` 기반의 하위 progress를 시작합니다. 이 전환은 최종 종료가 아니라 단계 전환이므로 `closed after ...` 줄을 남기지 않습니다.
+Root bar의 status를 단계 label로 바꾸고 `each()` 기반의 child progress를 시작합니다. child가 끝난 뒤 root는 열린 상태이므로 다음 `task.step()` 또는 `task.indeterminate()`가 정상 동작합니다.
 
 ```js
 await task.progress("migrate", rows, async (row) => {
@@ -60,10 +60,9 @@ await task.progress("migrate", rows, async (row) => {
 handler가 실패하면 활성 bar가 failure 상태로 종료되고 error가 다시 throw됩니다.
 
 ```js
-await flowbar.task("release", async (task) => {
+await task("release", async (task) => {
   await task.step("test", async () => {
     throw new Error("tests failed");
   });
 });
 ```
-

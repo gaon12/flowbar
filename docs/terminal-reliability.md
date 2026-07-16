@@ -23,10 +23,11 @@ flowbar treats terminal output stability as part of the product contract. A prog
 | Repaint batching | `terminal renderer batches line repaint chunks with content` |
 | Count width changes | `determinate bar width stays stable across count and postfix changes` |
 | Long postfix | Tail text is truncated instead of resizing the progress bar |
-| Task-to-progress transition | `task.progress transitions without leaving a root closed line` |
+| Task-to-progress transition | `task.progress keeps the root available for later steps` |
 | ASCII output | `ASCII charset uses ASCII final markers` |
 | ANSI color output | `color option emits ANSI styling when enabled` |
 | Multi-bar close | `group.close closes tracked child bars` |
+| Real PTY / resize / Unicode | `npm run test:pty` through PowerShell + ConPTY on Windows and `/bin/sh` PTY on Unix |
 | CI and non-TTY | Covered by auto renderer selection and plain renderer behavior |
 
 ## Output Rules
@@ -43,9 +44,9 @@ flowbar treats terminal output stability as part of the product contract. A prog
 Run these snippets in Windows Terminal, VS Code integrated terminal, and a Unix-like terminal:
 
 ```js
-import flowbar from "flowbar";
+import { create } from "flowbar";
 
-const bar = flowbar.create({ label: "flicker", total: 5000, interval: 16 });
+const bar = create({ label: "flicker", total: 5000, interval: 16 });
 for (let index = 0; index < 5000; index += 1) {
   bar.increment();
   if (index % 3 === 0) {
@@ -56,14 +57,14 @@ bar.succeed("done");
 ```
 
 ```js
-import flowbar from "flowbar";
+import { group } from "flowbar";
 
-const group = flowbar.group({ label: "batch" });
-const first = group.create({ label: "one", total: 100 });
-const second = group.create({ label: "two", total: 100 });
+const bars = group({ label: "batch" });
+const first = bars.create({ label: "one", total: 100 });
+const second = bars.create({ label: "two", total: 100 });
 for (let index = 0; index < 100; index += 1) {
   first.increment();
   second.increment();
 }
-group.close();
+bars.close();
 ```

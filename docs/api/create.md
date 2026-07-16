@@ -1,6 +1,6 @@
-# API: flowbar.create(options)
+# API: create(options)
 
-`flowbar.create(options)`는 수동으로 제어하는 `ProgressBar`를 만듭니다.
+`create(options)` named export는 수동으로 제어하는 `ProgressBar`를 만듭니다.
 
 ## When to Use
 
@@ -9,9 +9,9 @@
 - iterable helper보다 수동 제어가 더 자연스러운 workflow일 때
 
 ```js
-import flowbar from "flowbar";
+import { create } from "flowbar";
 
-const bar = flowbar.create({ label: "download", total: 100 });
+const bar = create({ label: "download", total: 100 });
 
 bar.increment(10);
 bar.update(50);
@@ -44,7 +44,7 @@ bar.update(42);
 
 전체 작업량을 설정합니다. total을 설정하면 determinate mode로 전환됩니다.
 `total`은 `number`, `null`, `undefined`만 의미가 있습니다. number는 finite이고 0 이상이어야 합니다.
-`null` 또는 `undefined`는 total을 제거합니다.
+`null` 또는 `undefined`는 total을 제거하고 mode를 `auto`로 되돌립니다.
 
 ```js
 bar.setTotal(100);
@@ -119,6 +119,7 @@ console.log(snapshot.timing.ratePerSecond);
 
 `ProgressBar`의 공개 상태(`current`, `total`, `status`, `postfix`, `startedAt`, `updatedAt`, `frameIndex`, `closed`, `options`)는 읽기용 getter입니다.
 상태를 바꿀 때는 직접 대입하지 말고 `increment`, `update`, `setTotal`, `setStatus`, `setPostfix`, 종료 메서드를 사용합니다.
+`options`와 `snapshot()`은 중첩 데이터까지 복제·동결하며 output, signal, callback 같은 실행 capability는 포함하지 않습니다.
 
 ## Renderer Notes
 

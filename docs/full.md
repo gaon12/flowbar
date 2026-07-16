@@ -12,14 +12,16 @@ npm install flowbar
 
 ## Choose the API
 
+The default export is only the iterable wrapper. All helper APIs are named exports. `configure(defaults)` returns a non-callable `FlowbarClient` instead of attaching helpers and a class to a function.
+
 - `flowbar(input, options)`: wrap `Iterable` or `AsyncIterable`.
-- `flowbar.map(input, mapper, options)`: concurrent processing with ordered result array.
-- `flowbar.each(input, handler, options)`: concurrent processing without result allocation.
-- `flowbar.create(options)`: manual `ProgressBar`.
-- `flowbar.wait(options)`: indeterminate work with no fake ETA.
-- `flowbar.stream(options)`: Node.js `Transform` progress, usually byte progress.
-- `flowbar.group(options)`: shared defaults for multiple bars.
-- `flowbar.task(label, handler, options)`: multi-step workflows with task phases.
+- Named `map(input, mapper, options)`: concurrent processing with ordered result array.
+- Named `each(input, handler, options)`: concurrent processing without result allocation.
+- Named `create(options)`: manual `ProgressBar`.
+- Named `wait(options)`: indeterminate work with no fake ETA.
+- Named `stream(options)`: Node.js `Transform` progress, including byte and object modes.
+- Named `group(options)`: shared defaults for multiple bars.
+- Named `task(label, handler, options)`: multi-step workflows with task phases.
 
 ## Core Principles
 
@@ -37,7 +39,7 @@ npm install flowbar
 ## Basic Iterable
 
 ```js
-import flowbar from "flowbar";
+import flowbar, { create, each, map, stream, task, wait } from "flowbar";
 
 for (const item of flowbar(items, { label: "items" })) {
   await processItem(item);
@@ -57,7 +59,7 @@ for await (const item of flowbar(asyncItems, { label: "items", total: 100 })) {
 ## Manual ProgressBar
 
 ```js
-const bar = flowbar.create({ label: "manual", total: 100 });
+const bar = create({ label: "manual", total: 100 });
 bar.increment(10);
 bar.update(50);
 bar.setPostfix({ phase: "download" });
@@ -67,11 +69,12 @@ bar.succeed("done");
 Runtime validation rejects non-finite numeric state such as `NaN` and `Infinity`. `setTotal(total)` requires a finite non-negative number, `null`, or `undefined`.
 Public `ProgressBar` state is exposed as read-only getters. Use methods such as `increment`, `update`, `setTotal`, `setStatus`, and `setPostfix` to change state.
 `close(message, { leave: false })` suppresses the final line for that close call without changing the bar's default `leave` option.
+`options` and `snapshot()` deeply isolate nested data and omit output, signal, and callback capabilities, which also keeps JSON events serializable.
 
 ## Concurrency
 
 ```js
-const results = await flowbar.map(items, async (item, index, bar) => {
+const results = await map(items, async (item, index, bar) => {
   bar.setPostfix({ index });
   return processItem(item);
 }, {
@@ -80,12 +83,12 @@ const results = await flowbar.map(items, async (item, index, bar) => {
 });
 ```
 
-`map` returns results in input order. `concurrency` must be a finite number greater than or equal to 1.
+`map` returns results in input order. `concurrency` must be an integer from 1 through 1024 and is capped to a known input size.
 
 Use `each` when no result array is needed:
 
 ```js
-await flowbar.each(items, async (item) => {
+await each(items, async (item) => {
   await processItem(item);
 }, {
   label: "items",
@@ -93,31 +96,31 @@ await flowbar.each(items, async (item) => {
 });
 ```
 
-If mapper or handler fails, the bar fails and async iterator `return()` is called when available.
+If mapper or handler fails, the internal signal passed as the fourth handler argument is aborted, in-flight handlers are awaited, and async iterator `return()` is called when available.
 
 ## Stream
 
 ```js
 await pipeline(
   createReadStream(input),
-  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  stream({ label: "copy", total: size, unit: "byte" }),
   createWriteStream(output),
 );
 ```
 
-`unit: "byte"` increments by chunk length and formats byte units as B, KiB, MiB, GiB, and higher.
+`unit: "byte"` counts Buffer/typed-array byte length and string chunks with `Buffer.byteLength(chunk, encoding)`. `objectMode: true` defaults to item counting and rejects object chunks in byte mode.
 
 ## Wait / Indeterminate
 
 ```js
-const wait = flowbar.wait({
+const waiting = wait({
   label: "connect",
   status: "waiting",
   animation: "marquee",
 });
 
 await connectToServer();
-wait.succeed("connected");
+waiting.succeed("connected");
 ```
 
 Supported animations: `spinner`, `marquee`, `bounce`, `pulse`.
@@ -125,7 +128,7 @@ Supported animations: `spinner`, `marquee`, `bounce`, `pulse`.
 If total becomes known later:
 
 ```js
-const bar = flowbar.wait({ label: "scan" });
+const bar = wait({ label: "scan" });
 const files = await discoverFiles();
 bar.setTotal(files.length);
 for (const file of files) {
@@ -138,7 +141,7 @@ bar.succeed();
 ## Task
 
 ```js
-await flowbar.task("deploy", async (task) => {
+await task("deploy", async (task) => {
   await task.step("prepare", async () => {
     await prepare();
   });
@@ -151,7 +154,7 @@ await flowbar.task("deploy", async (task) => {
 });
 ```
 
-`task.progress()` transitions from the root task bar to child progress without leaving an intermediate `closed after ...` final line.
+`task.progress()` keeps the root task bar alive while child progress runs, so later task steps still update the root.
 
 ## Modes
 
@@ -180,6 +183,7 @@ connect  |░░░░██████░░░░░░░░| waiting | elap
 - TTY and non-CI: terminal renderer.
 - CI, pipe, non-TTY: plain renderer.
 - Fast TTY update loops are throttled by `interval`, default 80ms.
+- JSON renderer updates are also throttled by `interval`; final and log events remain immediate.
 - Resize listeners are cleaned up when the last terminal renderer for an output is disposed.
 - Use `bar.log`, `bar.warn`, and `bar.error` instead of `console.log` while a live region is active.
 - ASCII charset uses ASCII final markers such as `[OK]`, `[ERR]`, and `[CANCEL]`.
@@ -188,14 +192,14 @@ connect  |░░░░██████░░░░░░░░| waiting | elap
 ## TypeScript
 
 ```ts
-import flowbar, { ProgressBar, FlowbarOptions } from "flowbar";
+import { create, ProgressBar, FlowbarOptions } from "flowbar";
 
 const options: FlowbarOptions = {
   label: "typed",
   total: 100,
 };
 
-const bar: ProgressBar = flowbar.create(options);
+const bar: ProgressBar = create(options);
 bar.increment();
 bar.succeed();
 ```
