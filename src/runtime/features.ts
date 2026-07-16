@@ -1,23 +1,46 @@
 import { Transform } from "node:stream";
-import { isFiniteNumber } from "../core/utils.js";
-import type { FlowbarGroup, FlowbarHandler, FlowbarMapOptions, FlowbarOptions, FlowbarTaskApi } from "../types.js";
+import type {
+  FlowbarGroup,
+  FlowbarHandler,
+  FlowbarMapOptions,
+  FlowbarOptions,
+  FlowbarStreamOptions,
+  FlowbarTaskApi,
+} from "../types.js";
 import { eachWithProgress } from "./iterables.js";
 import { createProgressBar, type ProgressBar } from "./progress-bar.js";
 
-export function streamWithProgress(options: FlowbarOptions = {}): Transform & { flowbar: ProgressBar } {
-  const bar = createProgressBar({ ...options, unit: options.unit || "byte" });
+function getChunkByteLength(chunk: unknown, encoding: BufferEncoding | "buffer"): number {
+  if (typeof chunk === "string") {
+    return Buffer.byteLength(chunk, encoding === "buffer" ? "utf8" : encoding);
+  }
+  if (Buffer.isBuffer(chunk)) {
+    return chunk.length;
+  }
+  if (ArrayBuffer.isView(chunk)) {
+    return chunk.byteLength;
+  }
+  if (chunk instanceof ArrayBuffer) {
+    return chunk.byteLength;
+  }
+  throw new TypeError('flowbar.stream({ unit: "byte" }) expects string or binary chunks.');
+}
+
+export function streamWithProgress(options: FlowbarStreamOptions = {}): Transform & { flowbar: ProgressBar } {
+  const objectMode = options.objectMode === true;
+  const bar = createProgressBar({ ...options, unit: options.unit || (objectMode ? "item" : "byte") });
   const unit = bar.options.unit;
   const transform = new Transform({
-    transform(chunk: unknown, _encoding: BufferEncoding, callback: (error?: Error | null, data?: unknown) => void) {
+    readableObjectMode: objectMode,
+    writableObjectMode: objectMode,
+    decodeStrings: false,
+    transform(
+      chunk: unknown,
+      encoding: BufferEncoding | "buffer",
+      callback: (error?: Error | null, data?: unknown) => void,
+    ) {
       try {
-        const amount =
-          unit === "byte" &&
-          chunk != null &&
-          typeof chunk === "object" &&
-          "length" in chunk &&
-          isFiniteNumber(chunk.length)
-            ? chunk.length
-            : 1;
+        const amount = unit === "byte" ? getChunkByteLength(chunk, encoding) : 1;
         bar.increment(amount);
         callback(null, chunk);
       } catch (error) {

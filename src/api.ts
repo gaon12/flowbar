@@ -7,6 +7,7 @@ import type {
   FlowbarMapOptions,
   FlowbarMapper,
   FlowbarOptions,
+  FlowbarStreamOptions,
   FlowbarTaskApi,
 } from "./types.js";
 
@@ -26,7 +27,7 @@ export function configure(defaultOptions: FlowbarOptions = {}): FlowbarClient {
       mapWithProgress(input, mapper, { ...defaultOptions, ...options }),
     each: <T>(input: Iterable<T> | AsyncIterable<T>, handler: FlowbarHandler<T>, options: FlowbarMapOptions = {}) =>
       eachWithProgress(input, handler, { ...defaultOptions, ...options }),
-    stream: (options: FlowbarOptions = {}) => streamWithProgress({ ...defaultOptions, ...options }),
+    stream: (options: FlowbarStreamOptions = {}) => streamWithProgress({ ...defaultOptions, ...options }),
     group: (options: FlowbarOptions = {}) => createGroup({ ...defaultOptions, ...options }),
     task: <T>(label: string, handler: (task: FlowbarTaskApi) => T | Promise<T>, options: FlowbarOptions = {}) =>
       runTask(label, handler, { ...defaultOptions, ...options }),
