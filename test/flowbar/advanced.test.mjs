@@ -231,4 +231,70 @@ test("each does not expose a result array and validates concurrency", async () =
     () => each([1], async () => {}, { renderer: "silent", concurrency: Number.NaN }),
     /concurrency must be a finite number/,
   );
+  await assert.rejects(
+    () => each([1], async () => {}, { renderer: "silent", concurrency: 1.5 }),
+    /concurrency must be an integer/,
+  );
+  await assert.rejects(
+    () => each([1], async () => {}, { renderer: "silent", concurrency: 1025 }),
+    /concurrency must be less than or equal to 1024/,
+  );
+});
+
+test("each caps workers to a known input size", async () => {
+  let nextCalls = 0;
+  const input = [1, 2, 3];
+  const originalIterator = input[Symbol.iterator].bind(input);
+  input[Symbol.iterator] = () => {
+    const iterator = originalIterator();
+    return {
+      next() {
+        nextCalls += 1;
+        return iterator.next();
+      },
+    };
+  };
+
+  await each(input, async () => {}, { renderer: "silent", concurrency: 100 });
+
+  assert.ok(nextCalls <= 6, `expected at most 6 iterator reads, saw ${nextCalls}`);
+});
+
+test("mapper failure aborts and awaits in-flight handlers", async () => {
+  let releaseFailure;
+  const secondStarted = new Promise((resolve) => {
+    releaseFailure = resolve;
+  });
+  let cleanupFinished = false;
+  let receivedAbort = false;
+
+  await assert.rejects(
+    () =>
+      each(
+        [1, 2],
+        async (value, _index, _bar, signal) => {
+          if (value === 1) {
+            await secondStarted;
+            throw new Error("primary failure");
+          }
+          releaseFailure();
+          await new Promise((resolve) => {
+            signal.addEventListener(
+              "abort",
+              () => {
+                receivedAbort = true;
+                setTimeout(resolve, 20);
+              },
+              { once: true },
+            );
+          });
+          cleanupFinished = true;
+        },
+        { renderer: "silent", concurrency: 2 },
+      ),
+    /primary failure/,
+  );
+
+  assert.equal(receivedAbort, true);
+  assert.equal(cleanupFinished, true);
 });
