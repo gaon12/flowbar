@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.3 - 2026-07-20
+
 - Split the default callable iterable wrapper from named helper exports and make `configure()` return a non-callable client.
 - Keep task root bars alive across child progress steps.
 - Count encoded string chunks as bytes and separate stream object mode from byte mode.
