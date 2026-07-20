@@ -15,8 +15,9 @@ flowbar publishes to npm and creates a GitHub Release when a version tag is push
 
 ```sh
 npm run lint
+npm run typecheck
 npm test
-npm run format --if-present
+npm run test:pty
 npm pack --dry-run
 ```
 
@@ -24,11 +25,12 @@ npm pack --dry-run
 4. Create and push a version tag:
 
 ```sh
-git tag v0.1.2
-git push origin v0.1.2
+VERSION="$(node -p "require('./package.json').version")"
+git tag "v$VERSION"
+git push origin "v$VERSION"
 ```
 
-5. The `Release` workflow validates Node.js 20.x, 22.x, and 24.x.
+5. The `Release` workflow validates Node.js 20.x, 22.x, and 24.x on Linux, plus PowerShell and ConPTY on Windows.
 6. If validation passes, the workflow publishes to npm using `NPM_TOKEN`.
 7. After npm succeeds, GitHub creates the matching Release with generated notes.
 
