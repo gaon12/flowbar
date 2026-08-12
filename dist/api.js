@@ -1,6 +1,8 @@
-import { createGroup, task as runTask, streamWithProgress } from "./runtime/features.js";
+import { createGroup } from "./runtime/group.js";
 import { eachWithProgress, flowbar, mapWithProgress } from "./runtime/iterables.js";
 import { createProgressBar } from "./runtime/progress-bar.js";
+import { streamWithProgress } from "./runtime/stream.js";
+import { task as runTask } from "./runtime/task.js";
 export const create = createProgressBar;
 export const wait = (options = {}) => createProgressBar({ ...options, mode: "indeterminate" });
 export const map = mapWithProgress;
