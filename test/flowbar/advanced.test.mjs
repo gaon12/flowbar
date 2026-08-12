@@ -79,7 +79,7 @@ test("terminal renderer batches line repaint chunks with content", () => {
   assert.ok(chunks.some((chunk) => chunk.includes("paint") && chunk.includes("\u001B[0K")));
 });
 
-test("determinate bar width stays stable across count and postfix changes", () => {
+test("determinate layout stays full width across count and postfix changes", () => {
   const lines = [];
   const bar = create({
     label: "stable",
@@ -100,9 +100,61 @@ test("determinate bar width stays stable across count and postfix changes", () =
   bar.update(99);
   bar.succeed();
 
-  const barWidths = lines.map((line) => line.match(/\|([^|]*)\|/)?.[1]?.length).filter((width) => width != null);
-  assert.ok(barWidths.length >= 3);
-  assert.equal(new Set(barWidths).size, 1);
+  assert.ok(lines.length >= 3);
+  assert.deepEqual(new Set(lines.map(displayWidth)), new Set([80]));
+  assert.equal(
+    lines.some((line) => line.includes("…")),
+    false,
+  );
+});
+
+test("tqdm layout uses the full terminal width and preserves ETA before optional metadata", () => {
+  const lines = [];
+  const bar = create({
+    label: "eta",
+    total: 100,
+    charset: "ascii",
+    renderer: "memory",
+    output: { columns: 80, write() {} },
+    onRender(line) {
+      if (line.includes("|")) {
+        lines.push(line);
+      }
+    },
+  });
+
+  bar.increment();
+  bar.setPostfix({ phase: "a-postfix-that-does-not-fit-next-to-the-full-tqdm-metadata" });
+
+  assert.equal(displayWidth(lines.at(-1)), 80);
+  assert.match(lines.at(-1), /\[00:00<00:00/);
+  assert.equal(lines.at(-1).includes("…"), false);
+  bar.close();
+});
+
+test("terminal width uses every reported column unless a wrap guard is requested", () => {
+  const lines = [];
+  const output = { columns: 60, write() {} };
+  const full = create({
+    total: 10,
+    charset: "ascii",
+    renderer: "memory",
+    output,
+    onRender: (line) => lines.push(line),
+  });
+  const guarded = create({
+    total: 10,
+    charset: "ascii",
+    renderer: "memory",
+    output,
+    wrapGuardColumns: 2,
+    onRender: (line) => lines.push(line),
+  });
+
+  assert.equal(displayWidth(lines[0]), 60);
+  assert.equal(displayWidth(lines[1]), 58);
+  full.close();
+  guarded.close();
 });
 
 test("determinate bars do not start idle animation timers", () => {

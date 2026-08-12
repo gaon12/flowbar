@@ -6,7 +6,7 @@ export const DEFAULT_SPINNER_ASCII = ["-", "\\", "|", "/"];
 export const DEFAULT_TERMINAL_WIDTH = 80;
 export const DEFAULT_INTERVAL_MS = 80;
 export const DEFAULT_RATE_SMOOTHING = 0.85;
-export const DEFAULT_MIN_ETA_ELAPSED_MS = 500;
+export const DEFAULT_MIN_ETA_ELAPSED_MS = 0;
 export const nextProgressBarId = 1;
 
 export function now(): number {

@@ -53,12 +53,6 @@ function padDisplayLeft(value, width) {
     const padding = Math.max(0, width - displayWidth(value));
     return `${" ".repeat(padding)}${value}`;
 }
-function clampDisplay(value, width) {
-    if (width <= 0) {
-        return "";
-    }
-    return truncateDisplay(value, width);
-}
 function colorize(value, code, options) {
     if (!options.color) {
         return value;
@@ -84,34 +78,36 @@ function buildDeterminateLine(snapshot, width) {
     if (options.preset === "minimal") {
         return compactLine(`${label}${percent} ${count}`, width);
     }
+    const postfixTail = postfix ? ` ${postfix}` : "";
     const tailCandidates = [];
     if (options.preset === "verbose") {
-        tailCandidates.push(` ${count}`);
-        tailCandidates.push(` elapsed ${elapsed}`);
-        tailCandidates.push(` remaining ${remaining}`);
-        tailCandidates.push(` ${rate}`);
+        tailCandidates.push(` ${count} elapsed ${elapsed} remaining ${remaining} ${rate}${postfixTail}`);
+        tailCandidates.push(` ${count} elapsed ${elapsed} remaining ${remaining} ${rate}`);
+        tailCandidates.push(` ${count} elapsed ${elapsed} remaining ${remaining}`);
+        tailCandidates.push(` elapsed ${elapsed} remaining ${remaining}`);
     }
     else if (options.preset === "compact") {
-        tailCandidates.push(` ${count}`);
+        tailCandidates.push(` ${count} ${elapsed}<${remaining}${postfixTail}`);
+        tailCandidates.push(` ${count} ${elapsed}<${remaining}`);
         tailCandidates.push(` ${elapsed}<${remaining}`);
     }
     else {
-        tailCandidates.push(` ${count}`);
-        tailCandidates.push(` [${elapsed}<${remaining}, ${rate}]`);
+        tailCandidates.push(` ${count} [${elapsed}<${remaining}, ${rate}]${postfixTail}`);
+        tailCandidates.push(` ${count} [${elapsed}<${remaining}, ${rate}]`);
+        tailCandidates.push(` ${count} [${elapsed}<${remaining}]`);
+        tailCandidates.push(` [${elapsed}<${remaining}]`);
     }
-    if (postfix) {
-        tailCandidates.push(` ${postfix}`);
-    }
+    tailCandidates.push(` ${count}`);
+    tailCandidates.push("");
     const prefix = `${label}${percent} |`;
     const suffix = "|";
-    const availableWidth = width - displayWidth(`${prefix}${suffix}`);
-    if (availableWidth >= 6) {
-        const preferredBarWidth = options.preset === "compact" ? Math.floor(width * 0.42) : Math.floor(width * 0.36);
-        const barWidth = clampNumber(preferredBarWidth, 6, availableWidth);
-        const tailWidth = Math.max(0, availableWidth - barWidth);
-        const bar = makeBar(barWidth, ratio, charset);
-        const tail = clampDisplay(tailCandidates.join(""), tailWidth);
-        return compactLine(`${prefix}${bar}${suffix}${tail}`, width);
+    const fixedWidth = displayWidth(`${prefix}${suffix}`);
+    for (const tail of tailCandidates) {
+        const barWidth = width - fixedWidth - displayWidth(tail);
+        if (barWidth >= 6) {
+            const bar = makeBar(barWidth, ratio, charset);
+            return `${prefix}${bar}${suffix}${tail}`;
+        }
     }
     return compactLine(`${label}${percent} ${count}`, width);
 }

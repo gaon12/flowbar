@@ -122,7 +122,7 @@ export function normalizeOptions(options: FlowbarOptions = {}): RequiredNormaliz
     color: options.color === true,
     dynamicWidth: options.dynamicWidth !== false,
     adaptiveLayout: options.adaptiveLayout !== false,
-    wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns) ? Math.max(0, options.wrapGuardColumns) : 1,
+    wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns) ? Math.max(0, options.wrapGuardColumns) : 0,
     rateSmoothing: isFiniteNumber(options.rateSmoothing)
       ? clampNumber(options.rateSmoothing, 0, 0.99)
       : DEFAULT_RATE_SMOOTHING,
