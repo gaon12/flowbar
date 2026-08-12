@@ -1,6 +1,7 @@
 import { normalizeMode, normalizeOptions } from "../core/options.js";
+import { ProgressClock } from "../core/progress-clock.js";
 import { cloneData, readonlySnapshot } from "../core/snapshot.js";
-import { assertFiniteNumber, normalizeOptionalNonNegativeNumber, now, safeMessage } from "../core/utils.js";
+import { assertFiniteNumber, normalizeOptionalNonNegativeNumber, safeMessage } from "../core/utils.js";
 import { createRenderer } from "../rendering/renderers.js";
 import type {
   FlowbarCloseOptions,
@@ -21,10 +22,9 @@ export class ProgressBar {
   private totalValue: number | undefined;
   private statusValue: string;
   private postfixValue: Record<string, unknown>;
-  private startedAtValue: number;
-  private updatedAtValue: number;
-  private lastRateAt: number;
-  private ratePerSecond: number | null;
+  private modeValue: FlowbarMode;
+  private readonly clock: ProgressClock;
+  private readonly optionsSnapshot: FlowbarOptionsSnapshot;
   private frameIndexValue: number;
   private closedValue: boolean;
   private readonly renderer: Renderer;
@@ -38,10 +38,13 @@ export class ProgressBar {
     this.totalValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.total, "total");
     this.statusValue = this.normalizedOptions.status;
     this.postfixValue = cloneData(this.normalizedOptions.postfix || {});
-    this.startedAtValue = now();
-    this.updatedAtValue = this.startedAtValue;
-    this.lastRateAt = this.startedAtValue;
-    this.ratePerSecond = null;
+    this.modeValue = this.normalizedOptions.mode;
+    this.clock = new ProgressClock();
+    const optionsSnapshot = { ...this.normalizedOptions } as Partial<RequiredNormalizedFlowbarOptions>;
+    delete optionsSnapshot.output;
+    delete optionsSnapshot.signal;
+    delete optionsSnapshot.onRender;
+    this.optionsSnapshot = readonlySnapshot(optionsSnapshot) as FlowbarOptionsSnapshot;
     this.frameIndexValue = 0;
     this.closedValue = false;
     this.renderer = createRenderer(this.normalizedOptions);
@@ -64,11 +67,10 @@ export class ProgressBar {
   }
 
   get options(): FlowbarOptionsSnapshot {
-    const snapshot = { ...this.normalizedOptions } as Partial<RequiredNormalizedFlowbarOptions>;
-    delete snapshot.output;
-    delete snapshot.signal;
-    delete snapshot.onRender;
-    return readonlySnapshot(snapshot) as FlowbarOptionsSnapshot;
+    if (this.optionsSnapshot.mode === this.modeValue) {
+      return this.optionsSnapshot;
+    }
+    return Object.freeze({ ...this.optionsSnapshot, mode: this.modeValue });
   }
 
   get current(): number {
@@ -88,11 +90,11 @@ export class ProgressBar {
   }
 
   get startedAt(): number {
-    return this.startedAtValue;
+    return this.clock.startedAt;
   }
 
   get updatedAt(): number {
-    return this.updatedAtValue;
+    return this.clock.updatedAt;
   }
 
   get frameIndex(): number {
@@ -104,8 +106,8 @@ export class ProgressBar {
   }
 
   getMode(): Exclude<FlowbarMode, "auto"> {
-    if (this.normalizedOptions.mode && this.normalizedOptions.mode !== "auto") {
-      return this.normalizedOptions.mode;
+    if (this.modeValue !== "auto") {
+      return this.modeValue;
     }
     if (this.totalValue != null) {
       return "determinate";
@@ -117,14 +119,6 @@ export class ProgressBar {
   }
 
   snapshot(): FlowbarSnapshot {
-    const currentTime = now();
-    const elapsedMs = Math.max(0, currentTime - this.startedAtValue);
-    const rate =
-      this.ratePerSecond ?? (elapsedMs > 0 && this.currentValue > 0 ? this.currentValue / (elapsedMs / 1000) : null);
-    const remainingMs =
-      this.totalValue != null && rate != null && rate > 0 && elapsedMs >= this.normalizedOptions.minElapsedMsForEta
-        ? Math.max(0, (this.totalValue - this.currentValue) / rate) * 1000
-        : null;
     return {
       id: this.id,
       current: this.currentValue,
@@ -134,34 +128,8 @@ export class ProgressBar {
       postfix: readonlySnapshot(this.postfixValue),
       frameIndex: this.frameIndexValue,
       options: this.options,
-      timing: {
-        startedAt: this.startedAtValue,
-        updatedAt: this.updatedAtValue,
-        elapsedMs,
-        remainingMs,
-        etaAt: remainingMs == null ? null : Date.now() + remainingMs,
-        ratePerSecond: rate,
-      },
+      timing: this.clock.snapshot(this.currentValue, this.totalValue, this.normalizedOptions.minElapsedMsForEta),
     };
-  }
-
-  private updateRate(previousValue: number, nextValue: number): void {
-    const currentTime = now();
-    const elapsedSeconds = (currentTime - this.lastRateAt) / 1000;
-    const delta = nextValue - previousValue;
-    if (elapsedSeconds > 0 && delta !== 0) {
-      const instantRate = delta / elapsedSeconds;
-      if (instantRate > 0) {
-        if (this.ratePerSecond == null) {
-          this.ratePerSecond = instantRate;
-        } else {
-          const smoothing = this.normalizedOptions.rateSmoothing;
-          this.ratePerSecond = this.ratePerSecond * smoothing + instantRate * (1 - smoothing);
-        }
-      }
-    }
-    this.lastRateAt = currentTime;
-    this.updatedAtValue = currentTime;
   }
 
   private render(force = false): void {
@@ -190,7 +158,7 @@ export class ProgressBar {
         return;
       }
       this.frameIndexValue += 1;
-      this.updatedAtValue = now();
+      this.clock.touch();
       this.renderer.update(this, true);
     }, interval);
     if (typeof this.animationTimer.unref === "function") {
@@ -221,7 +189,7 @@ export class ProgressBar {
     const numericDelta = assertFiniteNumber(delta, "delta");
     const previous = this.currentValue;
     this.currentValue = Math.max(0, this.currentValue + numericDelta);
-    this.updateRate(previous, this.currentValue);
+    this.clock.updateRate(previous, this.currentValue, this.normalizedOptions.rateSmoothing);
     this.syncAnimationTimer();
     this.render(false);
     return this;
@@ -233,7 +201,7 @@ export class ProgressBar {
     }
     const previous = this.currentValue;
     this.currentValue = Math.max(0, assertFiniteNumber(value, "value"));
-    this.updateRate(previous, this.currentValue);
+    this.clock.updateRate(previous, this.currentValue, this.normalizedOptions.rateSmoothing);
     this.syncAnimationTimer();
     this.render(false);
     return this;
@@ -245,11 +213,11 @@ export class ProgressBar {
     }
     this.totalValue = normalizeOptionalNonNegativeNumber(total, "total");
     if (this.totalValue != null) {
-      this.normalizedOptions.mode = "determinate";
-    } else if (this.normalizedOptions.mode === "determinate") {
-      this.normalizedOptions.mode = "auto";
+      this.modeValue = "determinate";
+    } else if (this.modeValue === "determinate") {
+      this.modeValue = "auto";
     }
-    this.updatedAtValue = now();
+    this.clock.touch();
     this.syncAnimationTimer();
     this.render(true);
     return this;
@@ -259,8 +227,8 @@ export class ProgressBar {
     if (this.closedValue) {
       return this;
     }
-    this.normalizedOptions.mode = normalizeMode(mode);
-    this.updatedAtValue = now();
+    this.modeValue = normalizeMode(mode);
+    this.clock.touch();
     this.syncAnimationTimer();
     this.render(true);
     return this;
@@ -271,7 +239,7 @@ export class ProgressBar {
       return this;
     }
     this.statusValue = String(status);
-    this.updatedAtValue = now();
+    this.clock.touch();
     this.render(true);
     return this;
   }
@@ -281,7 +249,7 @@ export class ProgressBar {
       return this;
     }
     this.postfixValue = cloneData(postfix || {});
-    this.updatedAtValue = now();
+    this.clock.touch();
     this.render(true);
     return this;
   }
@@ -322,7 +290,7 @@ export class ProgressBar {
       return this;
     }
     this.closedValue = true;
-    this.updatedAtValue = now();
+    this.clock.touch();
     this.stopAnimationTimer();
     if (this.normalizedOptions.signal && this.abortHandler) {
       this.normalizedOptions.signal.removeEventListener("abort", this.abortHandler);

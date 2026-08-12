@@ -173,6 +173,20 @@ test("ProgressBar exposes read-only public state", () => {
   bar.close();
 });
 
+test("option snapshots are cached until a mutable mode transition", () => {
+  const bar = create({ total: 2, postfix: { phase: "build" }, renderer: "silent" });
+  const first = bar.options;
+
+  assert.equal(bar.options, first);
+  assert.equal(Object.isFrozen(first.postfix), true);
+
+  bar.setMode("counting");
+  assert.notEqual(bar.options, first);
+  assert.equal(bar.options.mode, "counting");
+  assert.equal(bar.snapshot().options.mode, "counting");
+  bar.close();
+});
+
 test("duration fields are zero padded", () => {
   const lines = [];
   const bar = create({
