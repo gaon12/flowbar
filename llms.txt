@@ -8,6 +8,8 @@ Use this import:
 import flowbar, { each, map, task, wait } from "flowbar";
 ```
 
+CommonJS is also supported: `const flowbar = require("flowbar")`; named helpers are properties on the callable wrapper.
+
 Important docs:
 
 - Docs index: docs/index.md
@@ -65,5 +67,7 @@ Rules:
 - ProgressBar public state is read-only; change state through methods.
 - Use named `task` for multi-step workflows; `task.progress` keeps the root alive for later steps.
 - Mapper/handler receives a cancellation signal as its fourth argument; rejection waits for in-flight cleanup.
-- `charset: "ascii"` keeps final markers ASCII-only; `color: true` colors final markers.
+- Known totals show ETA from the first usable rate sample, and the bar consumes remaining terminal width before dropping ETA.
+- The unfinished track is blank by default; use `barTrack: "shaded"` for visible track cells.
+- `charset: "ascii"` keeps final markers ASCII-only; `color: true`, `"auto"`, or a named color styles filled progress cells.
 - Use `renderer: "silent"` in tests.

@@ -39,6 +39,13 @@ Node.js의 async iterable, promise concurrency, stream, indeterminate task까지
 
 `flowbar`의 목표는 progress bar 객체를 복잡하게 조작하게 만드는 것이 아니라, 작업을 감싸면 진행 상태가 자연스럽게 드러나도록 하는 것입니다.
 
+ESM과 CommonJS를 모두 지원합니다. CommonJS에서는 callable wrapper와 named helper를 함께 사용할 수 있습니다.
+
+```js
+const flowbar = require("flowbar");
+const { each, wait } = flowbar;
+```
+
 ## 빠른 선택
 
 - iterable을 감싸려면 `flowbar(input, options)`
@@ -52,6 +59,8 @@ Node.js의 async iterable, promise concurrency, stream, indeterminate task까지
 
 - `for ... of`, `for await ... of`에서 바로 사용
 - `elapsed`, `remaining`, `rate` 기본 표시
+- 알려진 total에서는 첫 rate sample부터 ETA 표시
+- 기본 빈 track은 tqdm과 같은 공백이며 `barTrack: "shaded"`로 기존 음영 표시 지원
 - 전체 수량이 없는 counting mode 지원
 - 남은 시간을 알 수 없는 indeterminate mode 지원
 - spinner, marquee, bounce, pulse 애니메이션 지원
@@ -217,7 +226,8 @@ bar.succeed("done");
 - 업데이트마다 새 줄을 만들지 않고 같은 줄 또는 같은 live region을 갱신합니다.
 - 완료, 실패, 취소 시에만 최종 줄을 남깁니다.
 - `charset: "ascii"`에서는 최종 상태 marker도 ASCII로 출력합니다.
-- `color: true`를 주면 최종 상태 marker에 ANSI 색상을 적용합니다.
+- `color: true`는 검은 배경 기준 cyan progress 색상을 적용하고, `color: "auto"`는 TTY 배경에 맞춰 색상을 선택합니다.
+- `color: "magenta"`처럼 ANSI 색상 이름을 직접 지정할 수 있습니다.
 - safe logging을 사용할 때는 live region을 보존하면서 로그를 출력합니다.
 - non-TTY, CI, pipe 환경에서는 ANSI 제어 문자를 남기지 않는 plain renderer로 전환합니다.
 

@@ -29,6 +29,17 @@ await each(urls, async (url) => {
 });
 ```
 
+## CommonJS
+
+```js
+const flowbar = require("flowbar");
+const { each, wait } = flowbar;
+
+for (const item of flowbar(items, { label: "items" })) {
+  processItem(item);
+}
+```
+
 ## 남은 시간을 모르는 작업
 
 ```js

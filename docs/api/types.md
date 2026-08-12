@@ -15,11 +15,15 @@ import {
   FlowbarSnapshot,
   FlowbarMode,
   FlowbarAnimation,
+  FlowbarBarTrack,
+  FlowbarColorName,
   FlowbarRenderCallback,
   FlowbarCloseOptions,
   WritableLike,
 } from "flowbar";
 ```
+
+`FlowbarColorName`은 기본 8색과 `bright-*` 변형을 지원합니다: `black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`.
 
 ## FlowbarOptions
 
@@ -45,11 +49,12 @@ type FlowbarOptions = {
   wrapGuardColumns?: number;
   adaptiveLayout?: boolean;
   leave?: boolean;
-  color?: boolean;
+  color?: boolean | "auto" | FlowbarColorName;
   charset?: "auto" | "unicode" | "ascii";
   signal?: AbortSignal;
   postfix?: Record<string, unknown>;
   preset?: "tqdm" | "compact" | "verbose" | "minimal";
+  barTrack?: "blank" | "shaded";
   spinnerFrames?: readonly string[];
   rateSmoothing?: number;
   minElapsedMsForEta?: number;
@@ -66,7 +71,7 @@ TypeScript 사용자가 아니어도 런타임 검증이 적용됩니다.
 - numeric progress state는 finite number여야 하고, `concurrency`는 1부터 1024까지의 정수여야 합니다.
 - 저장되는 `total`과 초기 `current`는 0 이상이어야 합니다.
 - `update(value)`와 `increment(delta)` 결과 current는 0 아래로 내려가지 않습니다.
-- `mode`, `animation`, `preset`, `renderer`, `charset`은 선언된 문자열 union만 허용합니다.
+- `mode`, `animation`, `preset`, `renderer`, `charset`, `barTrack`, named `color`는 선언된 문자열 union만 허용합니다.
 
 ## Important Types
 

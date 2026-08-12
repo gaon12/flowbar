@@ -10,6 +10,13 @@ For token-efficient reading, prefer `docs/index.md` and the API-specific files u
 npm install flowbar
 ```
 
+ESM uses the default iterable wrapper plus named helpers. CommonJS returns the callable wrapper with the same helpers as properties:
+
+```js
+const flowbar = require("flowbar");
+const { create, each, wait } = flowbar;
+```
+
 ## Choose the API
 
 The default export is only the iterable wrapper. All helper APIs are named exports. `configure(defaults)` returns a non-callable `FlowbarClient` instead of attaching helpers and a class to a function.
@@ -34,7 +41,8 @@ The default export is only the iterable wrapper. All helper APIs are named expor
 - CI, pipe, and non-TTY output uses plain line rendering.
 - Runtime dependency count is zero.
 - `charset: "ascii"` keeps progress and final markers ASCII-only.
-- `color: true` enables ANSI color for final state markers.
+- The default unfinished track is blank like tqdm; `barTrack: "shaded"` restores visible track cells.
+- `color: true` uses a dark-terminal cyan progress color, `color: "auto"` adapts to the background, and named colors force a manual choice.
 
 ## Basic Iterable
 
@@ -161,7 +169,7 @@ await task("deploy", async (task) => {
 Determinate:
 
 ```text
-upload  42% |████████░░░░░░░░░░░░| 420/1000 [00:12<00:17, 34.8 items/s]
+upload  42% |████████            | 420/1000 [00:12<00:17, 34.8 items/s]
 ```
 
 Counting:
@@ -173,7 +181,7 @@ crawl  1,248 items | elapsed 00:18 | 68.9 items/s
 Indeterminate:
 
 ```text
-connect  |░░░░██████░░░░░░░░| waiting | elapsed 00:08
+connect  |    ██████        | waiting | elapsed 00:08
 ```
 
 ## Terminal Behavior
@@ -187,7 +195,7 @@ connect  |░░░░██████░░░░░░░░| waiting | elap
 - Resize listeners are cleaned up when the last terminal renderer for an output is disposed.
 - Use `bar.log`, `bar.warn`, and `bar.error` instead of `console.log` while a live region is active.
 - ASCII charset uses ASCII final markers such as `[OK]`, `[ERR]`, and `[CANCEL]`.
-- `color: true` adds ANSI color to final state markers.
+- `color: true`, `color: "auto"`, and named colors apply ANSI color to filled cells; final markers retain semantic colors.
 
 ## TypeScript
 

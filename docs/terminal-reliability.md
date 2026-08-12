@@ -21,11 +21,11 @@ flowbar treats terminal output stability as part of the product contract. A prog
 | --- | --- |
 | Fast tick update | `terminal renderer throttles tight update loops` |
 | Repaint batching | `terminal renderer batches line repaint chunks with content` |
-| Count width changes | `determinate bar width stays stable across count and postfix changes` |
-| Long postfix | Tail text is truncated instead of resizing the progress bar |
+| Count width changes | `determinate layout stays full width across count and postfix changes` |
+| Long postfix | Optional tail fields are dropped without truncating units or ETA |
 | Task-to-progress transition | `task.progress keeps the root available for later steps` |
 | ASCII output | `ASCII charset uses ASCII final markers` |
-| ANSI color output | `color option emits ANSI styling when enabled` |
+| ANSI color output | Dark, light, and named color regressions in `color.test.mjs` |
 | Multi-bar close | `group.close closes tracked child bars` |
 | Real PTY / resize / Unicode | `npm run test:pty` through PowerShell + ConPTY on Windows and `/bin/sh` PTY on Unix |
 | CI and non-TTY | Covered by auto renderer selection and plain renderer behavior |
@@ -35,8 +35,8 @@ flowbar treats terminal output stability as part of the product contract. A prog
 - Repaint a live frame as one output chunk where practical.
 - Do not write a clear-only chunk followed by content for ordinary progress updates.
 - Prefer writing content followed by `ESC[0K` so shorter next lines do not leave stale characters.
-- Keep determinate bar width stable for a fixed terminal width and preset.
-- Truncate volatile tail text, including long postfix values, before allowing it to resize the bar.
+- Use the full reported width and let the bar absorb space left by changing metadata.
+- Drop optional postfix and rate fields before ETA, without truncating units mid-field.
 - Use plain renderer output for CI, pipes, and non-TTY destinations.
 
 ## Manual Checks
