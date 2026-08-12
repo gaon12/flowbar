@@ -1,3 +1,4 @@
+import { resolveColor } from "./color.js";
 import { cloneData } from "./snapshot.js";
 import { assertFiniteNumber, chooseCharset, clampNumber, DEFAULT_INTERVAL_MS, DEFAULT_MIN_ETA_ELAPSED_MS, DEFAULT_RATE_SMOOTHING, DEFAULT_TERMINAL_WIDTH, isFiniteNumber, } from "./utils.js";
 export const MAX_CONCURRENCY = 1024;
@@ -100,7 +101,7 @@ export function normalizeOptions(options = {}) {
         status: options.status || "running",
         enabled: options.enabled !== false,
         leave: options.leave !== false,
-        color: options.color === true,
+        color: resolveColor(options.color, output),
         dynamicWidth: options.dynamicWidth !== false,
         adaptiveLayout: options.adaptiveLayout !== false,
         wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns) ? Math.max(0, options.wrapGuardColumns) : 0,

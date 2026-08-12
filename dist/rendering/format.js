@@ -1,3 +1,4 @@
+import { colorize } from "../core/color.js";
 import { clampNumber, DEFAULT_SPINNER_ASCII, DEFAULT_SPINNER_UNICODE, displayWidth, formatAmount, formatBytes, formatDuration, formatRate, isFiniteNumber, padLeft, pluralizeUnit, stringifyPostfix, truncateDisplay, } from "../core/utils.js";
 function emptyBarCharacter(charset, barTrack) {
     if (barTrack === "blank") {
@@ -5,15 +6,15 @@ function emptyBarCharacter(charset, barTrack) {
     }
     return charset === "ascii" ? "-" : "░";
 }
-function makeBar(width, ratio, charset, barTrack) {
+function makeBar(width, ratio, charset, barTrack, color) {
     const safeWidth = Math.max(0, Math.floor(width));
     const safeRatio = clampNumber(Number.isFinite(ratio) ? ratio : 0, 0, 1);
     const filledCount = Math.round(safeWidth * safeRatio);
     const full = charset === "ascii" ? "#" : "█";
     const empty = emptyBarCharacter(charset, barTrack);
-    return `${full.repeat(filledCount)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
+    return `${colorize(full.repeat(filledCount), color)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
 }
-function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset, barTrack) {
+function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset, barTrack, color) {
     const safeWidth = Math.max(1, Math.floor(width));
     const full = charset === "ascii" ? "#" : "█";
     const empty = emptyBarCharacter(charset, barTrack);
@@ -29,7 +30,7 @@ function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset, b
         for (let index = start; index < start + size; index += 1) {
             chars[index] = full;
         }
-        return chars.join("");
+        return colorize(chars.join(""), color);
     }
     if (style === "bounce") {
         const maximumPosition = Math.max(0, safeWidth - segment);
@@ -41,7 +42,7 @@ function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset, b
                 chars[index] = full;
             }
         }
-        return chars.join("");
+        return colorize(chars.join(""), color);
     }
     const cycle = safeWidth + segment;
     const position = (frameIndex % cycle) - segment;
@@ -50,7 +51,7 @@ function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset, b
             chars[index] = full;
         }
     }
-    return chars.join("");
+    return colorize(chars.join(""), color);
 }
 function compactLine(line, width) {
     return truncateDisplay(line.replace(/\s+/g, " ").trim(), width);
@@ -59,11 +60,11 @@ function padDisplayLeft(value, width) {
     const padding = Math.max(0, width - displayWidth(value));
     return `${" ".repeat(padding)}${value}`;
 }
-function colorize(value, code, options) {
+function colorizeStatus(value, color, options) {
     if (!options.color) {
         return value;
     }
-    return `\u001B[${code}m${value}\u001B[0m`;
+    return colorize(value, color);
 }
 function buildDeterminateLine(snapshot, width) {
     const { options } = snapshot;
@@ -111,7 +112,7 @@ function buildDeterminateLine(snapshot, width) {
     for (const tail of tailCandidates) {
         const barWidth = width - fixedWidth - displayWidth(tail);
         if (barWidth >= 6) {
-            const bar = makeBar(barWidth, ratio, charset, options.barTrack);
+            const bar = makeBar(barWidth, ratio, charset, options.barTrack, options.color);
             return `${prefix}${bar}${suffix}${tail}`;
         }
     }
@@ -156,7 +157,7 @@ function buildIndeterminateLine(snapshot, width) {
             const segmentWidth = isFiniteNumber(options.indeterminateSegmentWidth)
                 ? options.indeterminateSegmentWidth
                 : Math.max(3, Math.floor(barWidth * 0.28));
-            const bar = makeIndeterminateBar(barWidth, snapshot.frameIndex, animation, segmentWidth, charset, options.barTrack);
+            const bar = makeIndeterminateBar(barWidth, snapshot.frameIndex, animation, segmentWidth, charset, options.barTrack, options.color);
             return compactLine(`${label}|${bar}|${tail}`, width);
         }
         if (options.adaptiveLayout !== false) {
@@ -180,9 +181,9 @@ export function buildFinalLine(snapshot, state, message, width) {
     const label = options.label || "flowbar";
     const elapsed = formatDuration(snapshot.timing.elapsedMs);
     const suffix = message ? ` | ${message}` : "";
-    const successMarker = colorize(options.charset === "ascii" ? "[OK]" : "✔", 32, options);
-    const failureMarker = colorize(options.charset === "ascii" ? "[ERR]" : "✖", 31, options);
-    const cancelledMarker = colorize(options.charset === "ascii" ? "[CANCEL]" : "■", 33, options);
+    const successMarker = colorizeStatus(options.charset === "ascii" ? "[OK]" : "✔", "green", options);
+    const failureMarker = colorizeStatus(options.charset === "ascii" ? "[ERR]" : "✖", "red", options);
+    const cancelledMarker = colorizeStatus(options.charset === "ascii" ? "[CANCEL]" : "■", "yellow", options);
     if (state === "success") {
         if (snapshot.total != null) {
             return compactLine(`${successMarker} ${label}  done in ${elapsed} | ${formatAmount(snapshot.current, options.unit)}/${formatAmount(snapshot.total, options.unit)}${suffix}`, width);

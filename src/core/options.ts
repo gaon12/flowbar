@@ -9,6 +9,7 @@ import type {
   RequiredNormalizedFlowbarOptions,
   WritableLike,
 } from "../types.js";
+import { resolveColor } from "./color.js";
 import { cloneData } from "./snapshot.js";
 import {
   assertFiniteNumber,
@@ -131,7 +132,7 @@ export function normalizeOptions(options: FlowbarOptions = {}): RequiredNormaliz
     status: options.status || "running",
     enabled: options.enabled !== false,
     leave: options.leave !== false,
-    color: options.color === true,
+    color: resolveColor(options.color, output),
     dynamicWidth: options.dynamicWidth !== false,
     adaptiveLayout: options.adaptiveLayout !== false,
     wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns) ? Math.max(0, options.wrapGuardColumns) : 0,
