@@ -95,7 +95,8 @@ async function runPtyTest() {
   assert.equal(exitCode, 0, output);
   assert.match(output, /PTY=true/);
   assert.match(output, /COLUMNS=12/);
-  assert.match(output, /UNICODE=한글\|👨‍👩‍👧‍👦\|👍🏽/);
+  const reflowNormalizedOutput = output.replace(/\s+/gu, "");
+  assert.match(reflowNormalizedOutput, /UNICODE=한글\|👨‍👩‍👧‍👦\|👍🏽/);
   assert.match(output, /GROUP_SIZE=0/);
   assert.match(output, /LOGGED=1/);
   // biome-ignore lint/suspicious/noControlCharactersInRegex: PTY output must contain an ANSI ESC sequence.
