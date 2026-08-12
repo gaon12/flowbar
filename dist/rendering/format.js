@@ -1,16 +1,22 @@
 import { clampNumber, DEFAULT_SPINNER_ASCII, DEFAULT_SPINNER_UNICODE, displayWidth, formatAmount, formatBytes, formatDuration, formatRate, isFiniteNumber, padLeft, pluralizeUnit, stringifyPostfix, truncateDisplay, } from "../core/utils.js";
-function makeBar(width, ratio, charset) {
+function emptyBarCharacter(charset, barTrack) {
+    if (barTrack === "blank") {
+        return " ";
+    }
+    return charset === "ascii" ? "-" : "░";
+}
+function makeBar(width, ratio, charset, barTrack) {
     const safeWidth = Math.max(0, Math.floor(width));
     const safeRatio = clampNumber(Number.isFinite(ratio) ? ratio : 0, 0, 1);
     const filledCount = Math.round(safeWidth * safeRatio);
     const full = charset === "ascii" ? "#" : "█";
-    const empty = charset === "ascii" ? "-" : "░";
+    const empty = emptyBarCharacter(charset, barTrack);
     return `${full.repeat(filledCount)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
 }
-function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset) {
+function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset, barTrack) {
     const safeWidth = Math.max(1, Math.floor(width));
     const full = charset === "ascii" ? "#" : "█";
-    const empty = charset === "ascii" ? "-" : "░";
+    const empty = emptyBarCharacter(charset, barTrack);
     const segment = clampNumber(Math.floor(segmentWidth || Math.max(3, safeWidth * 0.28)), 1, safeWidth);
     const chars = Array.from({ length: safeWidth }, () => empty);
     if (style === "pulse") {
@@ -105,7 +111,7 @@ function buildDeterminateLine(snapshot, width) {
     for (const tail of tailCandidates) {
         const barWidth = width - fixedWidth - displayWidth(tail);
         if (barWidth >= 6) {
-            const bar = makeBar(barWidth, ratio, charset);
+            const bar = makeBar(barWidth, ratio, charset, options.barTrack);
             return `${prefix}${bar}${suffix}${tail}`;
         }
     }
@@ -150,7 +156,7 @@ function buildIndeterminateLine(snapshot, width) {
             const segmentWidth = isFiniteNumber(options.indeterminateSegmentWidth)
                 ? options.indeterminateSegmentWidth
                 : Math.max(3, Math.floor(barWidth * 0.28));
-            const bar = makeIndeterminateBar(barWidth, snapshot.frameIndex, animation, segmentWidth, charset);
+            const bar = makeIndeterminateBar(barWidth, snapshot.frameIndex, animation, segmentWidth, charset, options.barTrack);
             return compactLine(`${label}|${bar}|${tail}`, width);
         }
         if (options.adaptiveLayout !== false) {
