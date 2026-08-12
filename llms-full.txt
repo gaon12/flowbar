@@ -10,6 +10,13 @@ flowbar is a zero-dependency progress toolkit for modern Node.js.
 import flowbar, { create, each, group, map, stream, task, wait } from "flowbar";
 ```
 
+CommonJS returns a callable wrapper with the same helpers as properties:
+
+```js
+const flowbar = require("flowbar");
+const { create, each, wait } = flowbar;
+```
+
 ## API Routing
 
 - `flowbar(input, options)`: wrap `Iterable` or `AsyncIterable`; see `docs/api/flowbar.md`.
@@ -123,7 +130,9 @@ await task("deploy", async (task) => {
 - Byte streams count encoded string bytes; object mode defaults to item counting.
 - `close(message, { leave: false })` suppresses the final line for that close call.
 - `charset: "ascii"` keeps progress and final markers ASCII-only.
-- `color: true` colors final state markers with ANSI.
+- Known totals expose ETA from the first usable rate sample and full-width layout preserves ETA before optional metadata.
+- The default unfinished track is blank; `barTrack: "shaded"` restores visible track cells.
+- `color: true` uses the dark-terminal palette, `color: "auto"` adapts to terminal background hints, and named colors are manual overrides.
 - Use `renderer: "silent"` in tests.
 
 ## Avoid

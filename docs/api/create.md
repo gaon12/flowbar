@@ -127,4 +127,6 @@ console.log(snapshot.timing.ratePerSecond);
 - `renderer: "memory"`는 테스트용이며 `onRender(line, snapshot)`으로 렌더 결과를 받습니다.
 - TTY terminal renderer는 빠른 update loop에서 `interval` 기준으로 갱신을 throttle합니다.
 - `charset: "ascii"`에서는 final marker도 ASCII로 출력합니다.
-- `color: true`는 final marker에 ANSI 색상을 적용합니다.
+- `color: true`는 검은 배경 기준 cyan progress 색상과 상태별 final marker 색상을 적용합니다.
+- `color: "auto"`는 TTY 배경을 감지하고, ANSI 색상 이름은 progress 색상을 수동 지정합니다.
+- 미완료 track은 기본적으로 공백이며 `barTrack: "shaded"`로 이전 음영 스타일을 선택합니다.

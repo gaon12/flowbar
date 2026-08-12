@@ -21,6 +21,8 @@ npm run test:pty
 npm pack --dry-run
 ```
 
+Source modules should normally stay below 350 lines by following API and lifecycle boundaries. This is a review target rather than an automated line-count release gate.
+
 3. Commit and push to `main`.
 4. Create and push a version tag:
 

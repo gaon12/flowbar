@@ -27,6 +27,7 @@ This file is the short entry point for humans and LLMs. Prefer the smallest API 
 - Helper API: use named imports such as `import { create, each, stream } from "flowbar";`.
 - Default output: `stderr`.
 - Default renderer: `auto`.
+- Both ESM imports and a callable CommonJS `require("flowbar")` entry are published.
 - TTY renderer updates a live region and throttles fast update loops by `interval`.
 - CI, pipe, and non-TTY output use plain line rendering.
 - `map` returns ordered results; `each` returns `undefined` and does not allocate a result array.

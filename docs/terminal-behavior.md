@@ -28,13 +28,13 @@ import { create } from "flowbar";
 create({
   dynamicWidth: true,
   adaptiveLayout: true,
-  wrapGuardColumns: 1,
+  wrapGuardColumns: 0,
 });
 ```
 
 ## 줄바꿈 방지
 
-터미널 마지막 칸까지 꽉 채우면 일부 환경에서 자동 줄바꿈이 발생할 수 있습니다. `wrapGuardColumns`는 이를 막기 위해 오른쪽에 남기는 여유 칸 수입니다.
+기본값은 보고된 터미널 폭을 모두 사용합니다. 마지막 칸에서 자동 줄바꿈되는 터미널에서는 `wrapGuardColumns: 1` 이상을 지정해 오른쪽 안전 여백을 둘 수 있습니다.
 
 ## 좁은 터미널
 
@@ -42,12 +42,13 @@ create({
 
 1. postfix
 2. rate
-3. remaining
-4. elapsed
-5. current/total
-6. bar
+3. current/total
+4. elapsed/remaining ETA
+5. bar
 
-최소 상태에서는 label, percent, count 중심으로 남깁니다.
+문자열 중간을 `…`로 잘라 단위를 훼손하지 않고, 후보 필드를 통째로 생략한 뒤 남는 폭은 bar가 사용합니다.
+
+Determinate bar의 미완료 track은 tqdm처럼 공백이 기본입니다. 이전 음영 표시는 `barTrack: "shaded"`로 선택할 수 있습니다.
 
 ## non-TTY와 CI
 
@@ -59,7 +60,9 @@ plain renderer는 과도한 로그를 줄이기 위해 terminal renderer보다 �
 
 `charset: "ascii"`는 progress bar 문자와 final marker를 ASCII로 제한합니다. 예를 들어 성공 marker는 `[OK]`입니다.
 
-`color: true`를 설정하면 final marker에 ANSI 색상을 적용합니다. 기본값은 `false`이며, non-TTY에서 ANSI를 피하려면 기본값을 유지합니다.
+`color: true`는 검은 배경 기준 cyan으로 채워진 progress cell을 표시하고 final marker에는 상태별 색상을 적용합니다. 기본값은 `false`입니다.
+
+`color: "auto"`는 TTY 여부, `NO_COLOR`, `FORCE_COLOR`, `FLOWBAR_BACKGROUND`, `COLORFGBG`를 확인해 어두운 배경에는 cyan, 밝은 배경에는 blue를 선택합니다. `color: "magenta"`, `"bright-green"`처럼 지원되는 ANSI 색상 이름을 주면 수동으로 고정합니다.
 
 ## safe logging
 

@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.1.4 - 2026-08-12
+
+- Show remaining time from the first usable rate sample and preserve ETA ahead of optional metadata on narrow terminals.
+- Use the full reported terminal width by default while retaining `wrapGuardColumns` for terminals that need a safety margin.
+- Render unfinished progress cells as a blank tqdm-style track by default and retain the previous visible track through `barTrack: "shaded"`.
+- Add `color: "auto"` background-aware color selection and named manual progress colors.
+- Publish callable CommonJS and standard ESM entry points from the same TypeScript source.
+- Cache immutable option snapshots and separate progress timing from lifecycle coordination.
+- Split stream, group, and task runtimes by public capability, replacing the mechanical file-length gate with a 350-line design target.
+
 ## 0.1.3 - 2026-07-20
 
 - Split the default callable iterable wrapper from named helper exports and make `configure()` return a non-callable client.
