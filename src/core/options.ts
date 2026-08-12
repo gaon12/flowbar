@@ -1,5 +1,6 @@
 import type {
   FlowbarAnimation,
+  FlowbarBarTrack,
   FlowbarCharset,
   FlowbarMode,
   FlowbarOptions,
@@ -79,6 +80,16 @@ export function normalizePreset(preset: unknown): FlowbarPreset {
   throw new TypeError(`preset must be one of "tqdm", "compact", "verbose", or "minimal".`);
 }
 
+function normalizeBarTrack(barTrack: unknown): FlowbarBarTrack {
+  if (barTrack == null || barTrack === "") {
+    return "blank";
+  }
+  if (barTrack === "blank" || barTrack === "shaded") {
+    return barTrack;
+  }
+  throw new TypeError('barTrack must be either "blank" or "shaded".');
+}
+
 export function normalizeConcurrency(value: unknown): number {
   if (value == null) {
     return 1;
@@ -115,6 +126,7 @@ export function normalizeOptions(options: FlowbarOptions = {}): RequiredNormaliz
     interval,
     mode: normalizeMode(options.mode),
     preset: normalizePreset(options.preset),
+    barTrack: normalizeBarTrack(options.barTrack),
     animation: normalizeAnimation(options.animation || options.indeterminateStyle),
     status: options.status || "running",
     enabled: options.enabled !== false,

@@ -5,6 +5,7 @@ export type FlowbarAnimation = "spinner" | "marquee" | "bounce" | "pulse";
 export type FlowbarRendererName = "auto" | "terminal" | "plain" | "silent" | "json" | "memory";
 export type FlowbarCharset = "auto" | "unicode" | "ascii";
 export type FlowbarPreset = "tqdm" | "compact" | "verbose" | "minimal";
+export type FlowbarBarTrack = "blank" | "shaded";
 export type FlowbarUnit = "item" | "byte" | string;
 export type WritableLike = {
     readonly isTTY?: boolean;
@@ -59,6 +60,7 @@ export type FlowbarOptions = {
     signal?: AbortSignal;
     postfix?: Record<string, unknown>;
     preset?: FlowbarPreset;
+    barTrack?: FlowbarBarTrack;
     spinnerFrames?: readonly string[];
     rateSmoothing?: number;
     minElapsedMsForEta?: number;
@@ -71,6 +73,7 @@ export type RequiredNormalizedFlowbarOptions = FlowbarOptions & {
     interval: number;
     mode: FlowbarMode;
     preset: FlowbarPreset;
+    barTrack: FlowbarBarTrack;
     animation: FlowbarAnimation;
     status: string;
     enabled: boolean;

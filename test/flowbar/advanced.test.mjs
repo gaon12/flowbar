@@ -157,6 +157,39 @@ test("terminal width uses every reported column unless a wrap guard is requested
   guarded.close();
 });
 
+test("determinate bars use a blank tqdm-style track by default", () => {
+  const lines = [];
+  const bar = create({
+    total: 10,
+    charset: "ascii",
+    renderer: "memory",
+    output: { columns: 60, write() {} },
+    onRender: (line) => lines.push(line),
+  });
+
+  const track = lines[0].match(/\|([^|]*)\|/)?.[1];
+  assert.ok(track.length >= 6);
+  assert.match(track, /^ +$/);
+  bar.close();
+});
+
+test("shaded tracks preserve the previous visible empty-cell style", () => {
+  const lines = [];
+  const bar = create({
+    total: 10,
+    barTrack: "shaded",
+    charset: "ascii",
+    renderer: "memory",
+    output: { columns: 60, write() {} },
+    onRender: (line) => lines.push(line),
+  });
+
+  const track = lines[0].match(/\|([^|]*)\|/)?.[1];
+  assert.match(track, /^-+$/);
+  assert.equal(bar.options.barTrack, "shaded");
+  bar.close();
+});
+
 test("determinate bars do not start idle animation timers", () => {
   const originalSetInterval = globalThis.setInterval;
   const originalClearInterval = globalThis.clearInterval;

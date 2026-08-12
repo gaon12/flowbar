@@ -51,6 +51,15 @@ export function normalizePreset(preset) {
     }
     throw new TypeError(`preset must be one of "tqdm", "compact", "verbose", or "minimal".`);
 }
+function normalizeBarTrack(barTrack) {
+    if (barTrack == null || barTrack === "") {
+        return "blank";
+    }
+    if (barTrack === "blank" || barTrack === "shaded") {
+        return barTrack;
+    }
+    throw new TypeError('barTrack must be either "blank" or "shaded".');
+}
 export function normalizeConcurrency(value) {
     if (value == null) {
         return 1;
@@ -86,6 +95,7 @@ export function normalizeOptions(options = {}) {
         interval,
         mode: normalizeMode(options.mode),
         preset: normalizePreset(options.preset),
+        barTrack: normalizeBarTrack(options.barTrack),
         animation: normalizeAnimation(options.animation || options.indeterminateStyle),
         status: options.status || "running",
         enabled: options.enabled !== false,

@@ -15,18 +15,31 @@ import {
 } from "../core/utils.js";
 import type {
   FlowbarAnimation,
+  FlowbarBarTrack,
   FlowbarCharset,
   FlowbarOptionsSnapshot,
   FlowbarSnapshot,
   RendererFinishState,
 } from "../types.js";
 
-function makeBar(width: number, ratio: number, charset: Exclude<FlowbarCharset, "auto">): string {
+function emptyBarCharacter(charset: Exclude<FlowbarCharset, "auto">, barTrack: FlowbarBarTrack): " " | "-" | "░" {
+  if (barTrack === "blank") {
+    return " ";
+  }
+  return charset === "ascii" ? "-" : "░";
+}
+
+function makeBar(
+  width: number,
+  ratio: number,
+  charset: Exclude<FlowbarCharset, "auto">,
+  barTrack: FlowbarBarTrack,
+): string {
   const safeWidth = Math.max(0, Math.floor(width));
   const safeRatio = clampNumber(Number.isFinite(ratio) ? ratio : 0, 0, 1);
   const filledCount = Math.round(safeWidth * safeRatio);
   const full = charset === "ascii" ? "#" : "█";
-  const empty = charset === "ascii" ? "-" : "░";
+  const empty = emptyBarCharacter(charset, barTrack);
   return `${full.repeat(filledCount)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
 }
 
@@ -36,10 +49,11 @@ function makeIndeterminateBar(
   style: FlowbarAnimation,
   segmentWidth: number | undefined,
   charset: Exclude<FlowbarCharset, "auto">,
+  barTrack: FlowbarBarTrack,
 ): string {
   const safeWidth = Math.max(1, Math.floor(width));
   const full = charset === "ascii" ? "#" : "█";
-  const empty = charset === "ascii" ? "-" : "░";
+  const empty = emptyBarCharacter(charset, barTrack);
   const segment = clampNumber(Math.floor(segmentWidth || Math.max(3, safeWidth * 0.28)), 1, safeWidth);
   const chars: string[] = Array.from({ length: safeWidth }, () => empty);
 
@@ -145,7 +159,7 @@ function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string 
   for (const tail of tailCandidates) {
     const barWidth = width - fixedWidth - displayWidth(tail);
     if (barWidth >= 6) {
-      const bar = makeBar(barWidth, ratio, charset);
+      const bar = makeBar(barWidth, ratio, charset, options.barTrack);
       return `${prefix}${bar}${suffix}${tail}`;
     }
   }
@@ -195,7 +209,14 @@ function buildIndeterminateLine(snapshot: FlowbarSnapshot, width: number): strin
       const segmentWidth = isFiniteNumber(options.indeterminateSegmentWidth)
         ? options.indeterminateSegmentWidth
         : Math.max(3, Math.floor(barWidth * 0.28));
-      const bar = makeIndeterminateBar(barWidth, snapshot.frameIndex, animation, segmentWidth, charset);
+      const bar = makeIndeterminateBar(
+        barWidth,
+        snapshot.frameIndex,
+        animation,
+        segmentWidth,
+        charset,
+        options.barTrack,
+      );
       return compactLine(`${label}|${bar}|${tail}`, width);
     }
     if (options.adaptiveLayout !== false) {
