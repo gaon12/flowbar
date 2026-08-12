@@ -1,3 +1,4 @@
+import { colorize } from "../core/color.js";
 import {
   clampNumber,
   DEFAULT_SPINNER_ASCII,
@@ -17,6 +18,7 @@ import type {
   FlowbarAnimation,
   FlowbarBarTrack,
   FlowbarCharset,
+  FlowbarColorName,
   FlowbarOptionsSnapshot,
   FlowbarSnapshot,
   RendererFinishState,
@@ -34,13 +36,14 @@ function makeBar(
   ratio: number,
   charset: Exclude<FlowbarCharset, "auto">,
   barTrack: FlowbarBarTrack,
+  color: false | FlowbarColorName,
 ): string {
   const safeWidth = Math.max(0, Math.floor(width));
   const safeRatio = clampNumber(Number.isFinite(ratio) ? ratio : 0, 0, 1);
   const filledCount = Math.round(safeWidth * safeRatio);
   const full = charset === "ascii" ? "#" : "█";
   const empty = emptyBarCharacter(charset, barTrack);
-  return `${full.repeat(filledCount)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
+  return `${colorize(full.repeat(filledCount), color)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
 }
 
 function makeIndeterminateBar(
@@ -50,6 +53,7 @@ function makeIndeterminateBar(
   segmentWidth: number | undefined,
   charset: Exclude<FlowbarCharset, "auto">,
   barTrack: FlowbarBarTrack,
+  color: false | FlowbarColorName,
 ): string {
   const safeWidth = Math.max(1, Math.floor(width));
   const full = charset === "ascii" ? "#" : "█";
@@ -67,7 +71,7 @@ function makeIndeterminateBar(
     for (let index = start; index < start + size; index += 1) {
       chars[index] = full;
     }
-    return chars.join("");
+    return colorize(chars.join(""), color);
   }
 
   if (style === "bounce") {
@@ -80,7 +84,7 @@ function makeIndeterminateBar(
         chars[index] = full;
       }
     }
-    return chars.join("");
+    return colorize(chars.join(""), color);
   }
 
   const cycle = safeWidth + segment;
@@ -90,7 +94,7 @@ function makeIndeterminateBar(
       chars[index] = full;
     }
   }
-  return chars.join("");
+  return colorize(chars.join(""), color);
 }
 
 function compactLine(line: string, width: number): string {
@@ -102,11 +106,11 @@ function padDisplayLeft(value: string, width: number): string {
   return `${" ".repeat(padding)}${value}`;
 }
 
-function colorize(value: string, code: number, options: FlowbarOptionsSnapshot): string {
+function colorizeStatus(value: string, color: FlowbarColorName, options: FlowbarOptionsSnapshot): string {
   if (!options.color) {
     return value;
   }
-  return `\u001B[${code}m${value}\u001B[0m`;
+  return colorize(value, color);
 }
 
 function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string {
@@ -159,7 +163,7 @@ function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string 
   for (const tail of tailCandidates) {
     const barWidth = width - fixedWidth - displayWidth(tail);
     if (barWidth >= 6) {
-      const bar = makeBar(barWidth, ratio, charset, options.barTrack);
+      const bar = makeBar(barWidth, ratio, charset, options.barTrack, options.color);
       return `${prefix}${bar}${suffix}${tail}`;
     }
   }
@@ -216,6 +220,7 @@ function buildIndeterminateLine(snapshot: FlowbarSnapshot, width: number): strin
         segmentWidth,
         charset,
         options.barTrack,
+        options.color,
       );
       return compactLine(`${label}|${bar}|${tail}`, width);
     }
@@ -247,9 +252,9 @@ export function buildFinalLine(
   const label = options.label || "flowbar";
   const elapsed = formatDuration(snapshot.timing.elapsedMs);
   const suffix = message ? ` | ${message}` : "";
-  const successMarker = colorize(options.charset === "ascii" ? "[OK]" : "✔", 32, options);
-  const failureMarker = colorize(options.charset === "ascii" ? "[ERR]" : "✖", 31, options);
-  const cancelledMarker = colorize(options.charset === "ascii" ? "[CANCEL]" : "■", 33, options);
+  const successMarker = colorizeStatus(options.charset === "ascii" ? "[OK]" : "✔", "green", options);
+  const failureMarker = colorizeStatus(options.charset === "ascii" ? "[ERR]" : "✖", "red", options);
+  const cancelledMarker = colorizeStatus(options.charset === "ascii" ? "[CANCEL]" : "■", "yellow", options);
   if (state === "success") {
     if (snapshot.total != null) {
       return compactLine(

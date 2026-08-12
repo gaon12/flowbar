@@ -7,6 +7,24 @@ export type FlowbarRendererName = "auto" | "terminal" | "plain" | "silent" | "js
 export type FlowbarCharset = "auto" | "unicode" | "ascii";
 export type FlowbarPreset = "tqdm" | "compact" | "verbose" | "minimal";
 export type FlowbarBarTrack = "blank" | "shaded";
+export type FlowbarColorName =
+  | "black"
+  | "red"
+  | "green"
+  | "yellow"
+  | "blue"
+  | "magenta"
+  | "cyan"
+  | "white"
+  | "bright-black"
+  | "bright-red"
+  | "bright-green"
+  | "bright-yellow"
+  | "bright-blue"
+  | "bright-magenta"
+  | "bright-cyan"
+  | "bright-white";
+export type FlowbarColorMode = boolean | "auto" | FlowbarColorName;
 export type FlowbarUnit = "item" | "byte" | string;
 
 export type WritableLike = {
@@ -61,7 +79,7 @@ export type FlowbarOptions = {
   wrapGuardColumns?: number;
   adaptiveLayout?: boolean;
   leave?: boolean;
-  color?: boolean;
+  color?: FlowbarColorMode;
   charset?: FlowbarCharset;
   signal?: AbortSignal;
   postfix?: Record<string, unknown>;
@@ -85,7 +103,7 @@ export type RequiredNormalizedFlowbarOptions = FlowbarOptions & {
   status: string;
   enabled: boolean;
   leave: boolean;
-  color: boolean;
+  color: false | FlowbarColorName;
   dynamicWidth: boolean;
   adaptiveLayout: boolean;
   wrapGuardColumns: number;
