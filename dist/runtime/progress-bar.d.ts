@@ -6,10 +6,9 @@ export declare class ProgressBar {
     private totalValue;
     private statusValue;
     private postfixValue;
-    private startedAtValue;
-    private updatedAtValue;
-    private lastRateAt;
-    private ratePerSecond;
+    private modeValue;
+    private readonly clock;
+    private readonly optionsSnapshot;
     private frameIndexValue;
     private closedValue;
     private readonly renderer;
@@ -27,7 +26,6 @@ export declare class ProgressBar {
     get closed(): boolean;
     getMode(): Exclude<FlowbarMode, "auto">;
     snapshot(): FlowbarSnapshot;
-    private updateRate;
     private render;
     private shouldAnimate;
     private startAnimationTimer;

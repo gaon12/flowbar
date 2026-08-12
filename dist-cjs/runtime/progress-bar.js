@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProgressBar = void 0;
 exports.createProgressBar = createProgressBar;
 const options_js_1 = require("../core/options.js");
+const progress_clock_js_1 = require("../core/progress-clock.js");
 const snapshot_js_1 = require("../core/snapshot.js");
 const utils_js_1 = require("../core/utils.js");
 const renderers_js_1 = require("../rendering/renderers.js");
@@ -14,10 +15,9 @@ class ProgressBar {
     totalValue;
     statusValue;
     postfixValue;
-    startedAtValue;
-    updatedAtValue;
-    lastRateAt;
-    ratePerSecond;
+    modeValue;
+    clock;
+    optionsSnapshot;
     frameIndexValue;
     closedValue;
     renderer;
@@ -30,10 +30,13 @@ class ProgressBar {
         this.totalValue = (0, utils_js_1.normalizeOptionalNonNegativeNumber)(this.normalizedOptions.total, "total");
         this.statusValue = this.normalizedOptions.status;
         this.postfixValue = (0, snapshot_js_1.cloneData)(this.normalizedOptions.postfix || {});
-        this.startedAtValue = (0, utils_js_1.now)();
-        this.updatedAtValue = this.startedAtValue;
-        this.lastRateAt = this.startedAtValue;
-        this.ratePerSecond = null;
+        this.modeValue = this.normalizedOptions.mode;
+        this.clock = new progress_clock_js_1.ProgressClock();
+        const optionsSnapshot = { ...this.normalizedOptions };
+        delete optionsSnapshot.output;
+        delete optionsSnapshot.signal;
+        delete optionsSnapshot.onRender;
+        this.optionsSnapshot = (0, snapshot_js_1.readonlySnapshot)(optionsSnapshot);
         this.frameIndexValue = 0;
         this.closedValue = false;
         this.renderer = (0, renderers_js_1.createRenderer)(this.normalizedOptions);
@@ -53,11 +56,10 @@ class ProgressBar {
         this.syncAnimationTimer();
     }
     get options() {
-        const snapshot = { ...this.normalizedOptions };
-        delete snapshot.output;
-        delete snapshot.signal;
-        delete snapshot.onRender;
-        return (0, snapshot_js_1.readonlySnapshot)(snapshot);
+        if (this.optionsSnapshot.mode === this.modeValue) {
+            return this.optionsSnapshot;
+        }
+        return Object.freeze({ ...this.optionsSnapshot, mode: this.modeValue });
     }
     get current() {
         return this.currentValue;
@@ -72,10 +74,10 @@ class ProgressBar {
         return (0, snapshot_js_1.readonlySnapshot)(this.postfixValue);
     }
     get startedAt() {
-        return this.startedAtValue;
+        return this.clock.startedAt;
     }
     get updatedAt() {
-        return this.updatedAtValue;
+        return this.clock.updatedAt;
     }
     get frameIndex() {
         return this.frameIndexValue;
@@ -84,8 +86,8 @@ class ProgressBar {
         return this.closedValue;
     }
     getMode() {
-        if (this.normalizedOptions.mode && this.normalizedOptions.mode !== "auto") {
-            return this.normalizedOptions.mode;
+        if (this.modeValue !== "auto") {
+            return this.modeValue;
         }
         if (this.totalValue != null) {
             return "determinate";
@@ -96,12 +98,6 @@ class ProgressBar {
         return "indeterminate";
     }
     snapshot() {
-        const currentTime = (0, utils_js_1.now)();
-        const elapsedMs = Math.max(0, currentTime - this.startedAtValue);
-        const rate = this.ratePerSecond ?? (elapsedMs > 0 && this.currentValue > 0 ? this.currentValue / (elapsedMs / 1000) : null);
-        const remainingMs = this.totalValue != null && rate != null && rate > 0 && elapsedMs >= this.normalizedOptions.minElapsedMsForEta
-            ? Math.max(0, (this.totalValue - this.currentValue) / rate) * 1000
-            : null;
         return {
             id: this.id,
             current: this.currentValue,
@@ -111,34 +107,8 @@ class ProgressBar {
             postfix: (0, snapshot_js_1.readonlySnapshot)(this.postfixValue),
             frameIndex: this.frameIndexValue,
             options: this.options,
-            timing: {
-                startedAt: this.startedAtValue,
-                updatedAt: this.updatedAtValue,
-                elapsedMs,
-                remainingMs,
-                etaAt: remainingMs == null ? null : Date.now() + remainingMs,
-                ratePerSecond: rate,
-            },
+            timing: this.clock.snapshot(this.currentValue, this.totalValue, this.normalizedOptions.minElapsedMsForEta),
         };
-    }
-    updateRate(previousValue, nextValue) {
-        const currentTime = (0, utils_js_1.now)();
-        const elapsedSeconds = (currentTime - this.lastRateAt) / 1000;
-        const delta = nextValue - previousValue;
-        if (elapsedSeconds > 0 && delta !== 0) {
-            const instantRate = delta / elapsedSeconds;
-            if (instantRate > 0) {
-                if (this.ratePerSecond == null) {
-                    this.ratePerSecond = instantRate;
-                }
-                else {
-                    const smoothing = this.normalizedOptions.rateSmoothing;
-                    this.ratePerSecond = this.ratePerSecond * smoothing + instantRate * (1 - smoothing);
-                }
-            }
-        }
-        this.lastRateAt = currentTime;
-        this.updatedAtValue = currentTime;
     }
     render(force = false) {
         if (this.closedValue) {
@@ -162,7 +132,7 @@ class ProgressBar {
                 return;
             }
             this.frameIndexValue += 1;
-            this.updatedAtValue = (0, utils_js_1.now)();
+            this.clock.touch();
             this.renderer.update(this, true);
         }, interval);
         if (typeof this.animationTimer.unref === "function") {
@@ -191,7 +161,7 @@ class ProgressBar {
         const numericDelta = (0, utils_js_1.assertFiniteNumber)(delta, "delta");
         const previous = this.currentValue;
         this.currentValue = Math.max(0, this.currentValue + numericDelta);
-        this.updateRate(previous, this.currentValue);
+        this.clock.updateRate(previous, this.currentValue, this.normalizedOptions.rateSmoothing);
         this.syncAnimationTimer();
         this.render(false);
         return this;
@@ -202,7 +172,7 @@ class ProgressBar {
         }
         const previous = this.currentValue;
         this.currentValue = Math.max(0, (0, utils_js_1.assertFiniteNumber)(value, "value"));
-        this.updateRate(previous, this.currentValue);
+        this.clock.updateRate(previous, this.currentValue, this.normalizedOptions.rateSmoothing);
         this.syncAnimationTimer();
         this.render(false);
         return this;
@@ -213,12 +183,12 @@ class ProgressBar {
         }
         this.totalValue = (0, utils_js_1.normalizeOptionalNonNegativeNumber)(total, "total");
         if (this.totalValue != null) {
-            this.normalizedOptions.mode = "determinate";
+            this.modeValue = "determinate";
         }
-        else if (this.normalizedOptions.mode === "determinate") {
-            this.normalizedOptions.mode = "auto";
+        else if (this.modeValue === "determinate") {
+            this.modeValue = "auto";
         }
-        this.updatedAtValue = (0, utils_js_1.now)();
+        this.clock.touch();
         this.syncAnimationTimer();
         this.render(true);
         return this;
@@ -227,8 +197,8 @@ class ProgressBar {
         if (this.closedValue) {
             return this;
         }
-        this.normalizedOptions.mode = (0, options_js_1.normalizeMode)(mode);
-        this.updatedAtValue = (0, utils_js_1.now)();
+        this.modeValue = (0, options_js_1.normalizeMode)(mode);
+        this.clock.touch();
         this.syncAnimationTimer();
         this.render(true);
         return this;
@@ -238,7 +208,7 @@ class ProgressBar {
             return this;
         }
         this.statusValue = String(status);
-        this.updatedAtValue = (0, utils_js_1.now)();
+        this.clock.touch();
         this.render(true);
         return this;
     }
@@ -247,7 +217,7 @@ class ProgressBar {
             return this;
         }
         this.postfixValue = (0, snapshot_js_1.cloneData)(postfix || {});
-        this.updatedAtValue = (0, utils_js_1.now)();
+        this.clock.touch();
         this.render(true);
         return this;
     }
@@ -280,7 +250,7 @@ class ProgressBar {
             return this;
         }
         this.closedValue = true;
-        this.updatedAtValue = (0, utils_js_1.now)();
+        this.clock.touch();
         this.stopAnimationTimer();
         if (this.normalizedOptions.signal && this.abortHandler) {
             this.normalizedOptions.signal.removeEventListener("abort", this.abortHandler);
