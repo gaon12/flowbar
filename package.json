@@ -26,11 +26,13 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist-cjs/index.cjs"
     },
     "./package.json": "./package.json"
   },
   "types": "./dist/index.d.ts",
+  "main": "./dist-cjs/index.cjs",
   "sideEffects": false,
   "publishConfig": {
     "access": "public",
@@ -38,6 +40,7 @@
   },
   "files": [
     "dist",
+    "dist-cjs",
     "src",
     "docs",
     "README.md",
@@ -50,7 +53,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check . && npm run check:lines",
     "lint:fix": "biome check --write .",
@@ -60,7 +65,7 @@
     "test": "node --test",
     "pretest:pty": "npm run build",
     "test:pty": "node scripts/pty-integration.mjs",
-    "check": "node --check dist/index.js",
+    "check": "node --check dist/index.js && node --check dist-cjs/index.cjs",
     "prepack": "npm test",
     "prepare:zip": "npm test && node --check dist/index.js"
   },
