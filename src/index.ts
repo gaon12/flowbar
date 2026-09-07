@@ -26,6 +26,7 @@ export function configure(defaultOptions: FlowbarOptions = {}): FlowbarFunction 
   configured.task = (label, handler, options = {}) =>
     task(label, handler, { ...defaultOptions, ...options });
   configured.configure = (options = {}) => configure({ ...defaultOptions, ...options });
+  configured.ProgressBar = ProgressBar;
   return configured;
 }
 

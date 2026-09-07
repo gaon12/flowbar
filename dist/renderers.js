@@ -1,4 +1,5 @@
 import { singleLine, stripAnsi } from "./display.js";
+import { jsonSnapshot } from "./json.js";
 import { buildFinalLine, buildLine } from "./layout.js";
 import { getTerminalWidth } from "./options.js";
 import { TerminalRenderer } from "./terminal.js";
@@ -95,7 +96,7 @@ export class JsonRenderer {
         }
         this.lastWriteAt = currentTime;
         const snapshot = bar.snapshot();
-        const line = JSON.stringify({ type: "progress", snapshot });
+        const line = JSON.stringify({ type: "progress", snapshot: jsonSnapshot(snapshot) });
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, snapshot);
     }
@@ -104,7 +105,12 @@ export class JsonRenderer {
             return;
         }
         const snapshot = bar.snapshot();
-        const line = JSON.stringify({ type: "final", state, message, snapshot });
+        const line = JSON.stringify({
+            type: "final",
+            state,
+            message,
+            snapshot: jsonSnapshot(snapshot),
+        });
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, snapshot);
     }

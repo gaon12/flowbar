@@ -13,6 +13,8 @@ export declare class ProgressBar {
     private ratePerSecond;
     private frameIndexValue;
     private closedValue;
+    private finishState;
+    private finishMessage;
     private readonly renderer;
     private readonly closeListeners;
     private abortHandler;

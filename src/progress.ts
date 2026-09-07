@@ -32,6 +32,8 @@ export class ProgressBar {
   private ratePerSecond: number | null;
   private frameIndexValue: number;
   private closedValue: boolean;
+  private finishState: RendererFinishState = "closed";
+  private finishMessage = "";
   private readonly renderer: Renderer;
   private readonly closeListeners: Set<FlowbarCloseCallback>;
   private abortHandler: (() => void) | undefined;
@@ -68,8 +70,20 @@ export class ProgressBar {
       this.normalizedOptions.signal.addEventListener("abort", this.abortHandler, { once: true });
     }
 
-    this.renderer.register(this);
-    this.syncAnimationTimer();
+    try {
+      this.renderer.register(this);
+      this.syncAnimationTimer();
+    } catch (error) {
+      this.closedValue = true;
+      if (this.abortHandler)
+        this.normalizedOptions.signal?.removeEventListener("abort", this.abortHandler);
+      try {
+        this.renderer.finalize(this, "closed", "", false);
+      } finally {
+        this.renderer.dispose();
+      }
+      throw error;
+    }
   }
 
   get options(): Readonly<RequiredNormalizedFlowbarOptions> {
@@ -129,7 +143,7 @@ export class ProgressBar {
   }
 
   snapshot(): FlowbarSnapshot {
-    const currentTime = now();
+    const currentTime = this.closedValue ? this.updatedAtValue : now();
     const elapsedMs = Math.max(0, currentTime - this.startedAtValue);
     const rate =
       this.ratePerSecond ??
@@ -315,7 +329,7 @@ export class ProgressBar {
       throw new TypeError("onClose(listener) expects listener to be a function.");
     }
     if (this.closedValue) {
-      listener(this, "closed", "");
+      listener(this, this.finishState, this.finishMessage);
       return this;
     }
     this.closeListeners.add(listener);
@@ -365,12 +379,29 @@ export class ProgressBar {
       this.abortHandler = undefined;
     }
     const finalMessage = safeMessage(message);
-    this.renderer.finalize(this, state, finalMessage, this.normalizedOptions.leave);
-    this.renderer.dispose?.();
-    for (const listener of this.closeListeners) {
-      listener(this, state, finalMessage);
+    this.finishState = state;
+    this.finishMessage = finalMessage;
+    const errors: unknown[] = [];
+    try {
+      this.renderer.finalize(this, state, finalMessage, this.normalizedOptions.leave);
+    } catch (error) {
+      errors.push(error);
     }
+    try {
+      this.renderer.dispose();
+    } catch (error) {
+      errors.push(error);
+    }
+    const listeners = [...this.closeListeners];
     this.closeListeners.clear();
+    for (const listener of listeners) {
+      try {
+        listener(this, state, finalMessage);
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    if (errors.length) throw errors[0];
     return this;
   }
 }

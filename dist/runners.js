@@ -5,12 +5,15 @@ import { ensureNotAborted, inferTotal, isAbortErrorLike } from "./utils.js";
 export async function runWithProgress(input, handler, options, collectResults, progressBar, finishBar = true) {
     const total = options.total ?? inferTotal(input);
     const concurrency = normalizeConcurrency(options.concurrency);
-    const bar = progressBar || createProgressBar({ ...options, total });
+    ensureNotAborted(options.signal);
     const iterator = toAsyncIterator(input);
+    const bar = progressBar || createProgressBar({ ...options, total });
     const results = [];
     let nextIndex = 0;
     let iteratorLock = Promise.resolve();
     let stopped = false;
+    let failed = false;
+    let firstError;
     async function nextItem() {
         const run = iteratorLock.then(async () => {
             if (stopped) {
@@ -19,7 +22,9 @@ export async function runWithProgress(input, handler, options, collectResults, p
             ensureNotAborted(options.signal);
             const index = nextIndex;
             const result = await iterator.next();
-            if (result.done) {
+            ensureNotAborted(options.signal);
+            if (result.done || stopped) {
+                stopped = true;
                 return { done: true, value: undefined, index: -1 };
             }
             nextIndex += 1;
@@ -31,10 +36,12 @@ export async function runWithProgress(input, handler, options, collectResults, p
     async function worker() {
         for (;;) {
             const item = await nextItem();
-            if (item.done) {
+            if (item.done || stopped) {
                 return;
             }
+            ensureNotAborted(options.signal);
             const mapped = await handler(item.value, item.index, bar);
+            ensureNotAborted(options.signal);
             if (collectResults) {
                 results[item.index] = mapped;
             }
@@ -42,7 +49,16 @@ export async function runWithProgress(input, handler, options, collectResults, p
         }
     }
     try {
-        await Promise.all(Array.from({ length: concurrency }, () => worker()));
+        await Promise.all(Array.from({ length: concurrency }, () => worker().catch((error) => {
+            stopped = true;
+            if (!failed) {
+                failed = true;
+                firstError = error;
+            }
+        })));
+        if (failed)
+            throw firstError;
+        ensureNotAborted(options.signal);
         if (finishBar) {
             bar.succeed();
         }
@@ -50,7 +66,12 @@ export async function runWithProgress(input, handler, options, collectResults, p
     }
     catch (error) {
         stopped = true;
-        await closeIterator(iterator);
+        try {
+            await closeIterator(iterator);
+        }
+        catch {
+            /* Preserve the original work error. */
+        }
         if (finishBar) {
             if (isAbortErrorLike(error)) {
                 bar.cancel("aborted");

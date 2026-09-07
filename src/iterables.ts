@@ -10,13 +10,15 @@ import {
 
 export function wrapSyncIterable<T>(input: Iterable<T>, options: FlowbarOptions = {}): Iterable<T> {
   const total = options.total ?? inferTotal(input);
-  const bar = createProgressBar({ ...options, total });
   function* generator() {
+    ensureNotAborted(options.signal);
+    const bar = createProgressBar({ ...options, total });
     let completedNormally = false;
     try {
       for (const item of input) {
         ensureNotAborted(options.signal);
         yield item;
+        ensureNotAborted(options.signal);
         bar.increment(1);
       }
       completedNormally = true;
@@ -42,13 +44,15 @@ export function wrapAsyncIterable<T>(
   options: FlowbarOptions = {},
 ): AsyncIterable<T> {
   const total = options.total ?? inferTotal(input);
-  const bar = createProgressBar({ ...options, total });
   async function* generator() {
+    ensureNotAborted(options.signal);
+    const bar = createProgressBar({ ...options, total });
     let completedNormally = false;
     try {
       for await (const item of input) {
         ensureNotAborted(options.signal);
         yield item;
+        ensureNotAborted(options.signal);
         bar.increment(1);
       }
       completedNormally = true;

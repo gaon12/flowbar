@@ -37,12 +37,15 @@ export async function runWithProgress<T, R>(
 ): Promise<R[] | void> {
   const total = options.total ?? inferTotal(input);
   const concurrency = normalizeConcurrency(options.concurrency);
-  const bar = progressBar || createProgressBar({ ...options, total });
+  ensureNotAborted(options.signal);
   const iterator = toAsyncIterator(input);
+  const bar = progressBar || createProgressBar({ ...options, total });
   const results: R[] = [];
   let nextIndex = 0;
   let iteratorLock: Promise<unknown> = Promise.resolve();
   let stopped = false;
+  let failed = false;
+  let firstError: unknown;
 
   async function nextItem(): Promise<WorkItem<T>> {
     const run: Promise<WorkItem<T>> = iteratorLock.then(async (): Promise<WorkItem<T>> => {
@@ -52,7 +55,9 @@ export async function runWithProgress<T, R>(
       ensureNotAborted(options.signal);
       const index = nextIndex;
       const result = await iterator.next();
-      if (result.done) {
+      ensureNotAborted(options.signal);
+      if (result.done || stopped) {
+        stopped = true;
         return { done: true, value: undefined, index: -1 };
       }
       nextIndex += 1;
@@ -65,10 +70,12 @@ export async function runWithProgress<T, R>(
   async function worker(): Promise<void> {
     for (;;) {
       const item = await nextItem();
-      if (item.done) {
+      if (item.done || stopped) {
         return;
       }
+      ensureNotAborted(options.signal);
       const mapped = await handler(item.value, item.index, bar);
+      ensureNotAborted(options.signal);
       if (collectResults) {
         results[item.index] = mapped as R;
       }
@@ -77,14 +84,30 @@ export async function runWithProgress<T, R>(
   }
 
   try {
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+    await Promise.all(
+      Array.from({ length: concurrency }, () =>
+        worker().catch((error) => {
+          stopped = true;
+          if (!failed) {
+            failed = true;
+            firstError = error;
+          }
+        }),
+      ),
+    );
+    if (failed) throw firstError;
+    ensureNotAborted(options.signal);
     if (finishBar) {
       bar.succeed();
     }
     return collectResults ? results : undefined;
   } catch (error) {
     stopped = true;
-    await closeIterator(iterator);
+    try {
+      await closeIterator(iterator);
+    } catch {
+      /* Preserve the original work error. */
+    }
     if (finishBar) {
       if (isAbortErrorLike(error)) {
         bar.cancel("aborted");

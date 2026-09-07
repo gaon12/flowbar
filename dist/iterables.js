@@ -2,13 +2,15 @@ import { createProgressBar } from "./progress.js";
 import { ensureNotAborted, inferTotal, isAbortErrorLike, isAsyncIterable, isIterable, } from "./utils.js";
 export function wrapSyncIterable(input, options = {}) {
     const total = options.total ?? inferTotal(input);
-    const bar = createProgressBar({ ...options, total });
     function* generator() {
+        ensureNotAborted(options.signal);
+        const bar = createProgressBar({ ...options, total });
         let completedNormally = false;
         try {
             for (const item of input) {
                 ensureNotAborted(options.signal);
                 yield item;
+                ensureNotAborted(options.signal);
                 bar.increment(1);
             }
             completedNormally = true;
@@ -33,13 +35,15 @@ export function wrapSyncIterable(input, options = {}) {
 }
 export function wrapAsyncIterable(input, options = {}) {
     const total = options.total ?? inferTotal(input);
-    const bar = createProgressBar({ ...options, total });
     async function* generator() {
+        ensureNotAborted(options.signal);
+        const bar = createProgressBar({ ...options, total });
         let completedNormally = false;
         try {
             for await (const item of input) {
                 ensureNotAborted(options.signal);
                 yield item;
+                ensureNotAborted(options.signal);
                 bar.increment(1);
             }
             completedNormally = true;

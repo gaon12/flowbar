@@ -17,6 +17,7 @@ export function configure(defaultOptions = {}) {
     configured.group = (options = {}) => createGroup({ ...defaultOptions, ...options });
     configured.task = (label, handler, options = {}) => task(label, handler, { ...defaultOptions, ...options });
     configured.configure = (options = {}) => configure({ ...defaultOptions, ...options });
+    configured.ProgressBar = ProgressBar;
     return configured;
 }
 const flowbarApi = flowbar;
