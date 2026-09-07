@@ -86,7 +86,7 @@ test("grapheme widths and truncation do not split emoji or combining sequences",
   for (const [text, width] of [
     ["한글", 4],
     ["e\u0301", 1],
-    ["👨‍👩‍👧‍👦", 2],
+    ["👨‍👩‍👧‍👦", process.platform === "win32" ? 8 : 2],
     ["🇰🇷", 2],
     ["👍🏽", 2],
     ["1️⃣", 2],
@@ -145,6 +145,7 @@ test("terminal resize, shared bars, logging and leave=false release listeners", 
   first.succeed();
   assert.equal(output.listenerCount("resize"), 0);
   assert.ok(output.writes.join("").includes("info: hello"));
+  assert.doesNotMatch(output.writes.join(""), /\x1b\[\d*M/);
 });
 
 test("ASCII truncation stays ASCII and terminal text cannot insert control sequences", () => {

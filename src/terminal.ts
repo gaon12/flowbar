@@ -88,7 +88,12 @@ export class TerminalHub {
       return;
     }
     this.moveToLiveTop();
-    this.output.write(`\u001B[${this.renderedLineCount}M`);
+    for (let index = 0; index < this.renderedLineCount; index++) {
+      this.output.write("\u001B[2K");
+      if (index < this.renderedLineCount - 1) this.output.write("\r\n");
+    }
+    if (this.renderedLineCount > 1) this.output.write(`\u001B[${this.renderedLineCount - 1}A`);
+    this.output.write("\r");
     this.renderedLineCount = 0;
   }
   safeWriteLine(line: string, options: RequiredNormalizedFlowbarOptions): void {

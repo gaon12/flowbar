@@ -1,6 +1,6 @@
 import { Transform } from "node:stream";
 import { createProgressBar } from "./progress.js";
-import { isAbortErrorLike, isFiniteNumber } from "./utils.js";
+import { isAbortErrorLike, isFiniteNumber, makeAbortError } from "./utils.js";
 export function streamWithProgress(options = {}) {
     const bar = createProgressBar({ ...options, unit: options.unit || "byte" });
     let tracking = false;
@@ -39,7 +39,7 @@ export function streamWithProgress(options = {}) {
         }
     });
     transform.track = async (operation) => {
-        if (tracking || bar.closed)
+        if (tracking || (bar.closed && !options.signal?.aborted))
             throw new Error("track() must be called once, before the stream closes.");
         tracking = true;
         try {
@@ -48,6 +48,10 @@ export function streamWithProgress(options = {}) {
             return result;
         }
         catch (error) {
+            if (options.signal?.aborted) {
+                bar.cancel("aborted");
+                throw isAbortErrorLike(error) ? error : makeAbortError();
+            }
             if (isAbortErrorLike(error))
                 bar.cancel("aborted");
             else

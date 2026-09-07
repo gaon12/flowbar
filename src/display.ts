@@ -69,6 +69,14 @@ export function displayWidth(value: unknown): number {
 }
 
 function graphemeWidth(segment: string): number {
+  // Windows ConPTY accounts for joined emoji as separate wide code points even
+  // when the terminal font draws a single glyph. Reserve those cells to avoid wrapping.
+  if (process.platform === "win32" && segment.includes("\u200d")) {
+    return [...segment].reduce(
+      (width, char) => width + codePointWidth(char.codePointAt(0) ?? 0),
+      0,
+    );
+  }
   if (/\p{Emoji_Presentation}|\p{Regional_Indicator}|\uFE0F|\u20E3/u.test(segment)) return 2;
   let width = 0;
   for (const char of segment) {

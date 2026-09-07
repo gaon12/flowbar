@@ -134,3 +134,27 @@ test("manual completion survives drainage and counts bytes under backpressure", 
   assert.equal(progress.flowbar.closed, false);
   progress.flowbar.succeed();
 });
+
+test("pre-aborted streams preserve AbortError when tracking a pipeline", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const { progress, events } = capture({ signal: controller.signal });
+  await assert.rejects(
+    progress.track(
+      pipeline(
+        Readable.from([Buffer.from("abc")]),
+        progress,
+        new Writable({
+          write(_c, _e, cb) {
+            cb();
+          },
+        }),
+      ),
+    ),
+    { name: "AbortError" },
+  );
+  assert.deepEqual(
+    events.filter((event) => event.type === "final").map((event) => event.state),
+    ["cancelled"],
+  );
+});
