@@ -21,12 +21,16 @@ for (const item of flowbar([1, 2, 3], { label: "items" })) {
 ## 비동기 작업
 
 ```js
-await flowbar.each(urls, async (url) => {
-  await fetch(url);
-}, {
-  label: "fetch",
-  concurrency: 8,
-});
+await flowbar.each(
+  urls,
+  async (url) => {
+    await fetch(url);
+  },
+  {
+    label: "fetch",
+    concurrency: 8,
+  },
+);
 ```
 
 ## 남은 시간을 모르는 작업

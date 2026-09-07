@@ -3,8 +3,8 @@
  *
  * 패키지는 zero runtime dependency를 유지하기 위해 Node.js core API만 사용합니다.
  */
-import { Transform } from "node:stream";
 import { performance } from "node:perf_hooks";
+import { Transform } from "node:stream";
 const DEFAULT_SPINNER_UNICODE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const DEFAULT_SPINNER_ASCII = ["-", "\\", "|", "/"];
 const DEFAULT_TERMINAL_WIDTH = 80;
@@ -28,7 +28,7 @@ function clampNumber(value, minimum, maximum) {
     return value;
 }
 function isAbortErrorLike(error) {
-    return error != null && typeof error === "object" && "name" in error && error.name === "AbortError";
+    return (error != null && typeof error === "object" && "name" in error && error.name === "AbortError");
 }
 function makeAbortError() {
     const error = new Error("The operation was aborted.");
@@ -41,7 +41,8 @@ function ensureNotAborted(signal) {
     }
 }
 function isAsyncIterable(value) {
-    return value != null && typeof value[Symbol.asyncIterator] === "function";
+    return (value != null &&
+        typeof value[Symbol.asyncIterator] === "function");
 }
 function isIterable(value) {
     return value != null && typeof value[Symbol.iterator] === "function";
@@ -91,7 +92,9 @@ function codePointWidth(codePoint) {
     if (codePoint === 0) {
         return 0;
     }
-    if (isZeroWidthCodePoint(codePoint) || codePoint < 32 || (codePoint >= 0x7f && codePoint < 0xa0)) {
+    if (isZeroWidthCodePoint(codePoint) ||
+        codePoint < 32 ||
+        (codePoint >= 0x7f && codePoint < 0xa0)) {
         return 0;
     }
     if ((codePoint >= 0x1100 && codePoint <= 0x115f) ||
@@ -268,7 +271,10 @@ function normalizeMode(mode) {
     if (mode == null || mode === "") {
         return "auto";
     }
-    if (mode === "auto" || mode === "determinate" || mode === "counting" || mode === "indeterminate") {
+    if (mode === "auto" ||
+        mode === "determinate" ||
+        mode === "counting" ||
+        mode === "indeterminate") {
         return mode;
     }
     throw new TypeError(`mode must be one of "auto", "determinate", "counting", or "indeterminate".`);
@@ -277,7 +283,10 @@ function normalizeAnimation(animation) {
     if (animation == null || animation === "") {
         return "spinner";
     }
-    if (animation === "spinner" || animation === "marquee" || animation === "bounce" || animation === "pulse") {
+    if (animation === "spinner" ||
+        animation === "marquee" ||
+        animation === "bounce" ||
+        animation === "pulse") {
         return animation;
     }
     throw new TypeError(`animation must be one of "spinner", "marquee", "bounce", or "pulse".`);
@@ -305,13 +314,18 @@ function normalizeOptions(options = {}) {
     const output = options.output || process.stderr;
     const renderer = options.renderer || "auto";
     const unit = options.unit || "item";
-    const interval = isFiniteNumber(options.interval) ? Math.max(16, options.interval) : DEFAULT_INTERVAL_MS;
+    const interval = isFiniteNumber(options.interval)
+        ? Math.max(16, options.interval)
+        : DEFAULT_INTERVAL_MS;
     return {
         ...options,
         output,
         renderer,
         unit,
         interval,
+        indeterminateInterval: isFiniteNumber(options.indeterminateInterval)
+            ? Math.max(16, options.indeterminateInterval)
+            : undefined,
         mode: normalizeMode(options.mode),
         preset: normalizePreset(options.preset),
         animation: normalizeAnimation(options.animation || options.indeterminateStyle),
@@ -321,7 +335,9 @@ function normalizeOptions(options = {}) {
         color: options.color === true,
         dynamicWidth: options.dynamicWidth !== false,
         adaptiveLayout: options.adaptiveLayout !== false,
-        wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns) ? Math.max(0, options.wrapGuardColumns) : 1,
+        wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns)
+            ? Math.max(0, options.wrapGuardColumns)
+            : 1,
         rateSmoothing: isFiniteNumber(options.rateSmoothing)
             ? clampNumber(options.rateSmoothing, 0, 0.99)
             : DEFAULT_RATE_SMOOTHING,
@@ -435,7 +451,7 @@ function buildDeterminateLine(snapshot, width) {
     if (postfix) {
         tailCandidates.push(` ${postfix}`);
     }
-    let tails = tailCandidates.slice();
+    const tails = tailCandidates.slice();
     while (tails.length >= 0) {
         const tail = tails.join("");
         const fixedWidth = displayWidth(`${label}${percent} ||${tail}`);
@@ -455,7 +471,9 @@ function buildCountingLine(snapshot, width) {
     const { options } = snapshot;
     const label = options.label ? `${options.label}  ` : "";
     const unit = pluralizeUnit(options.unit || "item", snapshot.current);
-    const count = options.unit === "byte" ? formatBytes(snapshot.current) : `${formatAmount(snapshot.current, options.unit)} ${unit}`;
+    const count = options.unit === "byte"
+        ? formatBytes(snapshot.current)
+        : `${formatAmount(snapshot.current, options.unit)} ${unit}`;
     const elapsed = formatDuration(snapshot.timing.elapsedMs);
     const rate = formatRate(snapshot.timing.ratePerSecond || 0, options.unit);
     const postfix = stringifyPostfix(snapshot.postfix);
@@ -478,13 +496,16 @@ function buildIndeterminateLine(snapshot, width) {
     const elapsed = formatDuration(snapshot.timing.elapsedMs);
     const status = snapshot.status || options.status || "running";
     const charset = options.charset;
-    const frames = options.spinnerFrames || (charset === "ascii" ? DEFAULT_SPINNER_ASCII : DEFAULT_SPINNER_UNICODE);
+    const frames = options.spinnerFrames ||
+        (charset === "ascii" ? DEFAULT_SPINNER_ASCII : DEFAULT_SPINNER_UNICODE);
     const spinner = frames[snapshot.frameIndex % frames.length];
     const animation = options.animation || "spinner";
     if (animation !== "spinner") {
         const tail = ` ${status} | elapsed ${elapsed}`;
         const fixedWidth = displayWidth(`${label} ||${tail}`);
-        const wantedWidth = isFiniteNumber(options.indeterminateWidth) ? options.indeterminateWidth : width - fixedWidth;
+        const wantedWidth = isFiniteNumber(options.indeterminateWidth)
+            ? options.indeterminateWidth
+            : width - fixedWidth;
         const barWidth = Math.floor(Math.min(Math.max(0, wantedWidth), width - fixedWidth));
         if (barWidth >= 6) {
             const segmentWidth = isFiniteNumber(options.indeterminateSegmentWidth)
@@ -613,13 +634,20 @@ class PlainRenderer {
 }
 class JsonRenderer {
     options;
+    lastWriteAt;
     constructor(options) {
         this.options = options;
+        this.lastWriteAt = 0;
     }
     register(bar) {
         this.update(bar, true);
     }
-    update(bar, _force = false) {
+    update(bar, force = false) {
+        const currentTime = now();
+        if (!force && currentTime - this.lastWriteAt < this.options.interval) {
+            return;
+        }
+        this.lastWriteAt = currentTime;
         const snapshot = bar.snapshot();
         const line = JSON.stringify({ type: "progress", snapshot });
         this.options.output.write(`${line}\n`);
@@ -793,7 +821,10 @@ class TerminalRenderer {
     }
 }
 function isCiEnvironment() {
-    return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.GITLAB_CI === "true" || process.env.BITBUCKET_BUILD_NUMBER != null;
+    return (process.env.CI === "true" ||
+        process.env.GITHUB_ACTIONS === "true" ||
+        process.env.GITLAB_CI === "true" ||
+        process.env.BITBUCKET_BUILD_NUMBER != null);
 }
 function createRenderer(options) {
     if (!options.enabled || options.renderer === "silent") {
@@ -826,29 +857,30 @@ export class ProgressBar {
     startedAtValue;
     updatedAtValue;
     lastRateAt;
-    lastRateValue;
     ratePerSecond;
     frameIndexValue;
     closedValue;
     renderer;
+    closeListeners;
     abortHandler;
     animationTimer;
     constructor(options = {}) {
         this.id = nextProgressBarId;
         nextProgressBarId += 1;
         this.normalizedOptions = normalizeOptions(options);
-        this.currentValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.current, "current") ?? 0;
+        this.currentValue =
+            normalizeOptionalNonNegativeNumber(this.normalizedOptions.current, "current") ?? 0;
         this.totalValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.total, "total");
         this.statusValue = this.normalizedOptions.status;
         this.postfixValue = { ...(this.normalizedOptions.postfix || {}) };
         this.startedAtValue = now();
         this.updatedAtValue = this.startedAtValue;
         this.lastRateAt = this.startedAtValue;
-        this.lastRateValue = this.currentValue;
         this.ratePerSecond = null;
         this.frameIndexValue = 0;
         this.closedValue = false;
         this.renderer = createRenderer(this.normalizedOptions);
+        this.closeListeners = new Set();
         this.abortHandler = undefined;
         this.animationTimer = undefined;
         if (this.normalizedOptions.signal) {
@@ -862,7 +894,7 @@ export class ProgressBar {
             this.normalizedOptions.signal.addEventListener("abort", this.abortHandler, { once: true });
         }
         this.renderer.register(this);
-        this.startAnimationIfNeeded();
+        this.syncAnimationTimer();
     }
     get options() {
         const spinnerFrames = this.normalizedOptions.spinnerFrames
@@ -878,6 +910,9 @@ export class ProgressBar {
     }
     get status() {
         return this.statusValue;
+    }
+    get label() {
+        return this.normalizedOptions.label;
     }
     get postfix() {
         return { ...this.postfixValue };
@@ -909,8 +944,12 @@ export class ProgressBar {
     snapshot() {
         const currentTime = now();
         const elapsedMs = Math.max(0, currentTime - this.startedAtValue);
-        const rate = this.ratePerSecond ?? (elapsedMs > 0 && this.currentValue > 0 ? this.currentValue / (elapsedMs / 1000) : null);
-        const remainingMs = this.totalValue != null && rate != null && rate > 0 && elapsedMs >= this.normalizedOptions.minElapsedMsForEta
+        const rate = this.ratePerSecond ??
+            (elapsedMs > 0 && this.currentValue > 0 ? this.currentValue / (elapsedMs / 1000) : null);
+        const remainingMs = this.totalValue != null &&
+            rate != null &&
+            rate > 0 &&
+            elapsedMs >= this.normalizedOptions.minElapsedMsForEta
             ? Math.max(0, (this.totalValue - this.currentValue) / rate) * 1000
             : null;
         return {
@@ -949,7 +988,6 @@ export class ProgressBar {
             }
         }
         this.lastRateAt = currentTime;
-        this.lastRateValue = nextValue;
         this.updatedAtValue = currentTime;
     }
     render(force = false) {
@@ -958,20 +996,35 @@ export class ProgressBar {
         }
         this.renderer.update(this, force);
     }
-    startAnimationIfNeeded() {
-        const interval = this.normalizedOptions.indeterminateInterval || this.normalizedOptions.interval;
-        if (!this.normalizedOptions.enabled || this.normalizedOptions.renderer === "silent") {
+    shouldRunAnimation() {
+        return (!this.closedValue &&
+            this.normalizedOptions.enabled &&
+            this.normalizedOptions.renderer !== "silent" &&
+            this.getMode() === "indeterminate");
+    }
+    stopAnimationTimer() {
+        if (this.animationTimer) {
+            clearInterval(this.animationTimer);
+            this.animationTimer = undefined;
+        }
+    }
+    syncAnimationTimer() {
+        if (!this.shouldRunAnimation()) {
+            this.stopAnimationTimer();
             return;
         }
+        if (this.animationTimer) {
+            return;
+        }
+        const interval = this.normalizedOptions.indeterminateInterval || this.normalizedOptions.interval;
         this.animationTimer = setInterval(() => {
-            if (this.closedValue) {
+            if (!this.shouldRunAnimation()) {
+                this.stopAnimationTimer();
                 return;
             }
-            if (this.getMode() === "indeterminate") {
-                this.frameIndexValue += 1;
-                this.updatedAtValue = now();
-                this.renderer.update(this, true);
-            }
+            this.frameIndexValue += 1;
+            this.updatedAtValue = now();
+            this.renderer.update(this, true);
         }, interval);
         if (typeof this.animationTimer.unref === "function") {
             this.animationTimer.unref();
@@ -982,9 +1035,11 @@ export class ProgressBar {
             return this;
         }
         const numericDelta = assertFiniteNumber(delta, "delta");
+        normalizeNonNegativeNumber(numericDelta, "delta");
         const previous = this.currentValue;
         this.currentValue = Math.max(0, this.currentValue + numericDelta);
         this.updateRate(previous, this.currentValue);
+        this.syncAnimationTimer();
         this.render(false);
         return this;
     }
@@ -995,6 +1050,7 @@ export class ProgressBar {
         const previous = this.currentValue;
         this.currentValue = Math.max(0, assertFiniteNumber(value, "value"));
         this.updateRate(previous, this.currentValue);
+        this.syncAnimationTimer();
         this.render(false);
         return this;
     }
@@ -1006,7 +1062,11 @@ export class ProgressBar {
         if (this.totalValue != null) {
             this.normalizedOptions.mode = "determinate";
         }
+        else if (this.normalizedOptions.mode === "determinate") {
+            this.normalizedOptions.mode = "auto";
+        }
         this.updatedAtValue = now();
+        this.syncAnimationTimer();
         this.render(true);
         return this;
     }
@@ -1016,6 +1076,7 @@ export class ProgressBar {
         }
         this.normalizedOptions.mode = normalizeMode(mode);
         this.updatedAtValue = now();
+        this.syncAnimationTimer();
         this.render(true);
         return this;
     }
@@ -1028,6 +1089,15 @@ export class ProgressBar {
         this.render(true);
         return this;
     }
+    setLabel(label) {
+        if (this.closedValue) {
+            return this;
+        }
+        this.normalizedOptions.label = label == null || label === "" ? undefined : String(label);
+        this.updatedAtValue = now();
+        this.render(true);
+        return this;
+    }
     setPostfix(postfix) {
         if (this.closedValue) {
             return this;
@@ -1035,6 +1105,17 @@ export class ProgressBar {
         this.postfixValue = { ...(postfix || {}) };
         this.updatedAtValue = now();
         this.render(true);
+        return this;
+    }
+    onClose(listener) {
+        if (typeof listener !== "function") {
+            throw new TypeError("onClose(listener) expects listener to be a function.");
+        }
+        if (this.closedValue) {
+            listener(this, "closed", "");
+            return this;
+        }
+        this.closeListeners.add(listener);
         return this;
     }
     log(message) {
@@ -1067,16 +1148,18 @@ export class ProgressBar {
         }
         this.closedValue = true;
         this.updatedAtValue = now();
-        if (this.animationTimer) {
-            clearInterval(this.animationTimer);
-            this.animationTimer = undefined;
-        }
+        this.stopAnimationTimer();
         if (this.normalizedOptions.signal && this.abortHandler) {
             this.normalizedOptions.signal.removeEventListener("abort", this.abortHandler);
             this.abortHandler = undefined;
         }
-        this.renderer.finalize(this, state, safeMessage(message), this.normalizedOptions.leave);
+        const finalMessage = safeMessage(message);
+        this.renderer.finalize(this, state, finalMessage, this.normalizedOptions.leave);
         this.renderer.dispose?.();
+        for (const listener of this.closeListeners) {
+            listener(this, state, finalMessage);
+        }
+        this.closeListeners.clear();
         return this;
     }
 }
@@ -1179,10 +1262,10 @@ async function closeIterator(iterator) {
         await iterator.return();
     }
 }
-async function runWithProgress(input, handler, options, collectResults) {
+async function runWithProgress(input, handler, options, collectResults, progressBar, finishBar = true) {
     const total = options.total ?? inferTotal(input);
     const concurrency = normalizeConcurrency(options.concurrency);
-    const bar = createProgressBar({ ...options, total });
+    const bar = progressBar || createProgressBar({ ...options, total });
     const iterator = toAsyncIterator(input);
     const results = [];
     let nextIndex = 0;
@@ -1220,17 +1303,21 @@ async function runWithProgress(input, handler, options, collectResults) {
     }
     try {
         await Promise.all(Array.from({ length: concurrency }, () => worker()));
-        bar.succeed();
+        if (finishBar) {
+            bar.succeed();
+        }
         return collectResults ? results : undefined;
     }
     catch (error) {
         stopped = true;
         await closeIterator(iterator);
-        if (isAbortErrorLike(error)) {
-            bar.cancel("aborted");
-        }
-        else {
-            bar.fail(error);
+        if (finishBar) {
+            if (isAbortErrorLike(error)) {
+                bar.cancel("aborted");
+            }
+            else {
+                bar.fail(error);
+            }
         }
         throw error;
     }
@@ -1253,7 +1340,13 @@ function streamWithProgress(options = {}) {
     const transform = new Transform({
         transform(chunk, _encoding, callback) {
             try {
-                const amount = unit === "byte" && chunk != null && typeof chunk === "object" && "length" in chunk && isFiniteNumber(chunk.length) ? chunk.length : 1;
+                const amount = unit === "byte" &&
+                    chunk != null &&
+                    typeof chunk === "object" &&
+                    "length" in chunk &&
+                    isFiniteNumber(chunk.length)
+                    ? chunk.length
+                    : 1;
                 bar.increment(amount);
                 callback(null, chunk);
             }
@@ -1290,6 +1383,9 @@ function createGroup(options = {}) {
     const bars = new Set();
     function track(bar) {
         bars.add(bar);
+        bar.onClose(() => {
+            bars.delete(bar);
+        });
         return bar;
     }
     return {
@@ -1311,7 +1407,12 @@ function createGroup(options = {}) {
     };
 }
 async function task(label, handler, options = {}) {
-    const root = createProgressBar({ ...options, label, mode: "indeterminate", status: options.status || "running" });
+    const root = createProgressBar({
+        ...options,
+        label,
+        mode: "indeterminate",
+        status: options.status || "running",
+    });
     const taskApi = {
         bar: root,
         async step(stepLabel, stepHandler) {
@@ -1324,8 +1425,9 @@ async function task(label, handler, options = {}) {
             return stepHandler(root);
         },
         async progress(stepLabel, items, itemHandler, progressOptions = {}) {
-            root.close();
-            return eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
+            const total = progressOptions.total ?? inferTotal(items);
+            root.setLabel(stepLabel).setStatus("running").update(0).setTotal(total);
+            await runWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel, total }, false, root, false);
         },
     };
     try {
@@ -1337,7 +1439,12 @@ async function task(label, handler, options = {}) {
     }
     catch (error) {
         if (!root.closed) {
-            root.fail(error);
+            if (isAbortErrorLike(error)) {
+                root.cancel("aborted");
+            }
+            else {
+                root.fail(error);
+            }
         }
         throw error;
     }

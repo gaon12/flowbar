@@ -37,23 +37,31 @@ for await (const item of flowbar(asyncItems, { label: "items", total })) {
 ## concurrency
 
 ```js
-await flowbar.map(items, async (item) => {
-  return processItem(item);
-}, {
-  label: "items",
-  concurrency: 8,
-});
+await flowbar.map(
+  items,
+  async (item) => {
+    return processItem(item);
+  },
+  {
+    label: "items",
+    concurrency: 8,
+  },
+);
 ```
 
 Use `each` when no result array is needed:
 
 ```js
-await flowbar.each(items, async (item) => {
-  await processItem(item);
-}, {
-  label: "items",
-  concurrency: 8,
-});
+await flowbar.each(
+  items,
+  async (item) => {
+    await processItem(item);
+  },
+  {
+    label: "items",
+    concurrency: 8,
+  },
+);
 ```
 
 ## manual

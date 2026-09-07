@@ -1,7 +1,7 @@
-import test from "node:test";
 import assert from "node:assert/strict";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
+import test from "node:test";
 import flowbar, { ProgressBar } from "../dist/index.js";
 
 test("manual progress bar exposes elapsed, remaining, and rate", async () => {
@@ -85,6 +85,50 @@ test("wait mode can transition to determinate mode using setTotal", () => {
   bar.succeed();
 });
 
+test("setTotal can return a determinate bar to auto mode", () => {
+  const lines = [];
+  const bar = flowbar.wait({
+    renderer: "memory",
+    onRender(line) {
+      lines.push(line);
+    },
+  });
+
+  bar.setTotal(2);
+  bar.increment();
+  bar.setTotal(undefined);
+
+  const snapshot = bar.snapshot();
+  assert.equal(snapshot.total, undefined);
+  assert.equal(snapshot.mode, "counting");
+  assert.equal(
+    lines.some((line) => line.includes("1/0")),
+    false,
+  );
+
+  bar.close();
+});
+
+test("indeterminate animation starts after mode changes", async () => {
+  const frames = [];
+  const bar = flowbar.create({
+    total: 2,
+    renderer: "memory",
+    interval: 16,
+    onRender(_line, snapshot) {
+      if (snapshot) {
+        frames.push(snapshot.frameIndex);
+      }
+    },
+  });
+
+  bar.setMode("indeterminate");
+  await new Promise((resolve) => setTimeout(resolve, 40));
+
+  assert.ok(frames.some((frame) => frame > 0));
+  bar.close();
+});
+
 test("stream mode increments by byte length", async () => {
   const progress = flowbar.stream({ total: 6, unit: "byte", renderer: "silent" });
   const chunks = [];
@@ -136,7 +180,10 @@ test("duration fields are zero padded", () => {
   bar.succeed("done");
 
   assert.ok(lines.some((line) => line.includes("00:00")));
-  assert.equal(lines.some((line) => line.includes(" 0: 0")), false);
+  assert.equal(
+    lines.some((line) => line.includes(" 0: 0")),
+    false,
+  );
 });
 
 test("terminal renderer throttles tight update loops", () => {
@@ -158,6 +205,32 @@ test("terminal renderer throttles tight update loops", () => {
   bar.succeed();
 
   assert.ok(writes < 100, `expected throttled writes, saw ${writes}`);
+});
+
+test("JSON renderer throttles tight update loops", () => {
+  let writes = 0;
+  const output = {
+    write() {
+      writes += 1;
+    },
+  };
+  const bar = flowbar.create({ total: 1000, output, renderer: "json", interval: 80 });
+
+  for (let index = 0; index < 1000; index += 1) {
+    bar.increment();
+  }
+  bar.succeed();
+
+  assert.ok(writes < 100, `expected throttled writes, saw ${writes}`);
+});
+
+test("increment rejects negative deltas", () => {
+  const bar = flowbar.create({ renderer: "silent" });
+
+  assert.throws(() => bar.increment(-1), /delta must be greater than or equal to 0/);
+  assert.equal(bar.snapshot().current, 0);
+
+  bar.close();
 });
 
 test("ASCII charset uses ASCII final markers", () => {
@@ -207,6 +280,45 @@ test("group.close closes tracked child bars", () => {
   assert.equal(second.closed, true);
 });
 
+test("group forgets child bars after they close themselves", () => {
+  let firstCloseCount = 0;
+  const group = flowbar.group({ renderer: "silent" });
+  const first = group.create({ total: 1 }).onClose(() => {
+    firstCloseCount += 1;
+  });
+  const second = group.create({ total: 1 });
+
+  first.succeed();
+  group.close();
+
+  assert.equal(firstCloseCount, 1);
+  assert.equal(first.closed, true);
+  assert.equal(second.closed, true);
+});
+
+test("task.progress reuses the root bar until the task succeeds", async () => {
+  const lines = [];
+  await flowbar.task(
+    "release",
+    async (task) => {
+      const root = task.bar;
+      await task.progress("build", [1, 2], async () => {}, { total: 2 });
+      assert.equal(task.bar, root);
+      assert.equal(root.closed, false);
+      assert.equal(root.snapshot().current, 2);
+    },
+    {
+      renderer: "memory",
+      onRender(line) {
+        lines.push(line);
+      },
+    },
+  );
+
+  assert.ok(lines.some((line) => line.includes("build")));
+  assert.ok(lines.at(-1).includes("done"));
+});
+
 test("setTotal rejects NaN and preserves the previous total", () => {
   const bar = flowbar.create({ total: 2, renderer: "silent" });
 
@@ -228,16 +340,17 @@ test("map closes async iterators when a mapper fails", async () => {
   }
 
   await assert.rejects(
-    () => flowbar.map(
-      source(),
-      async (value) => {
-        if (value === 1) {
-          throw new Error("boom");
-        }
-        return value;
-      },
-      { renderer: "silent" },
-    ),
+    () =>
+      flowbar.map(
+        source(),
+        async (value) => {
+          if (value === 1) {
+            throw new Error("boom");
+          }
+          return value;
+        },
+        { renderer: "silent" },
+      ),
     /boom/,
   );
 
@@ -246,9 +359,13 @@ test("map closes async iterators when a mapper fails", async () => {
 
 test("each does not expose a result array and validates concurrency", async () => {
   const seen = [];
-  const result = await flowbar.each([1, 2, 3], async (value) => {
-    seen.push(value);
-  }, { renderer: "silent", concurrency: 2 });
+  const result = await flowbar.each(
+    [1, 2, 3],
+    async (value) => {
+      seen.push(value);
+    },
+    { renderer: "silent", concurrency: 2 },
+  );
 
   assert.equal(result, undefined);
   assert.deepEqual(seen.sort(), [1, 2, 3]);

@@ -123,6 +123,8 @@ export interface FlowbarFunction {
     configure(defaultOptions?: FlowbarOptions): FlowbarFunction;
     ProgressBar: typeof ProgressBar;
 }
+export type FlowbarFinishState = "success" | "failure" | "cancelled" | "closed";
+export type FlowbarCloseCallback = (bar: ProgressBar, state: FlowbarFinishState, message: string) => void;
 export declare class ProgressBar {
     readonly id: number;
     private readonly normalizedOptions;
@@ -133,11 +135,11 @@ export declare class ProgressBar {
     private startedAtValue;
     private updatedAtValue;
     private lastRateAt;
-    private lastRateValue;
     private ratePerSecond;
     private frameIndexValue;
     private closedValue;
     private readonly renderer;
+    private readonly closeListeners;
     private abortHandler;
     private animationTimer;
     constructor(options?: FlowbarOptions);
@@ -145,6 +147,7 @@ export declare class ProgressBar {
     get current(): number;
     get total(): number | undefined;
     get status(): string;
+    get label(): string | undefined;
     get postfix(): Record<string, unknown>;
     get startedAt(): number;
     get updatedAt(): number;
@@ -154,13 +157,17 @@ export declare class ProgressBar {
     snapshot(): FlowbarSnapshot;
     private updateRate;
     private render;
-    private startAnimationIfNeeded;
+    private shouldRunAnimation;
+    private stopAnimationTimer;
+    private syncAnimationTimer;
     increment(delta?: number): this;
     update(value: number): this;
     setTotal(total: number | null | undefined): this;
     setMode(mode: FlowbarMode): this;
     setStatus(status: string): this;
+    setLabel(label: string | undefined): this;
     setPostfix(postfix: Record<string, unknown>): this;
+    onClose(listener: FlowbarCloseCallback): this;
     log(message: unknown): this;
     warn(message: unknown): this;
     error(message: unknown): this;

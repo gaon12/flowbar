@@ -1,35 +1,8 @@
 # flowbar
 
-Node.js의 async iterable, promise concurrency, stream, indeterminate task까지 자연스럽게 다루는 zero-dependency progress toolkit입니다.
+`flowbar`는 Node.js에서 쓰는 zero-dependency progress toolkit입니다.
 
-`flowbar`의 목표는 progress bar 객체를 복잡하게 조작하게 만드는 것이 아니라, 작업을 감싸면 진행 상태가 자연스럽게 드러나도록 하는 것입니다.
-
-## 빠른 선택
-
-- iterable을 감싸려면 `flowbar(input, options)`
-- 결과 배열이 필요하면 `flowbar.map(input, mapper, options)`
-- 결과 배열이 필요 없으면 `flowbar.each(input, handler, options)`
-- 수동으로 값과 상태를 제어하려면 `flowbar.create(options)`
-- total을 모르는 대기 작업은 `flowbar.wait(options)`
-- Node.js byte stream은 `flowbar.stream(options)`
-
-## 특징
-
-- `for ... of`, `for await ... of`에서 바로 사용
-- `elapsed`, `remaining`, `rate` 기본 표시
-- 전체 수량이 없는 counting mode 지원
-- 남은 시간을 알 수 없는 indeterminate mode 지원
-- spinner, marquee, bounce, pulse 애니메이션 지원
-- 터미널 창 크기 변경에 자동 대응
-- 같은 줄 또는 같은 live region에서 갱신
-- `console.log`와 섞일 때를 위한 safe logging API 제공
-- Node.js stream byte progress 지원
-- TypeScript declaration 내장
-- runtime dependency 없음
-- native addon, postinstall script 없음
-- CI, pipe, non-TTY 환경에서는 plain log로 자동 전환
-- LLM 친화 문서 제공: `llms.txt`, `llms-full.txt`, `docs/`
-- strict TypeScript source에서 `dist`와 declaration 생성
+목표는 Python의 `tqdm`처럼 단순한 사용감입니다. 작업을 감싸기만 하면 진행률, 경과 시간, 남은 시간, 처리 속도가 자연스럽게 보이도록 만드는 것이 핵심입니다.
 
 ## 설치
 
@@ -37,18 +10,9 @@ Node.js의 async iterable, promise concurrency, stream, indeterminate task까지
 npm install flowbar
 ```
 
-현재 저장소를 직접 검증하려면 다음 명령을 사용합니다.
+## 가장 기본 사용법
 
-```sh
-npm run typecheck
-npm run lint
-npm run build
-npm test
-node --check dist/index.js
-npm pack --dry-run
-```
-
-## 기본 사용법
+이미 배열이나 iterable이 있다면 `flowbar(items)`로 감싸면 됩니다.
 
 ```js
 import flowbar from "flowbar";
@@ -56,75 +20,98 @@ import flowbar from "flowbar";
 const files = ["a.txt", "b.txt", "c.txt"];
 
 for (const file of flowbar(files, { label: "files" })) {
+  // 실제 작업은 여기에서 합니다.
   await upload(file);
 }
 ```
 
-## AsyncIterable
+직접 `for`문을 쓰고 싶지 않다면 `flowbar.each()`를 쓰면 됩니다.
 
 ```js
 import flowbar from "flowbar";
 
-async function* createJobs() {
-  yield "job-a";
-  yield "job-b";
-  yield "job-c";
-}
+const files = ["a.txt", "b.txt", "c.txt"];
 
-for await (const job of flowbar(createJobs(), { label: "jobs", total: 3 })) {
-  await runJob(job);
-}
+await flowbar.each(
+  files,
+  async (file) => {
+    // 파일 하나마다 한 번씩 실행됩니다.
+    await upload(file);
+  },
+  {
+    label: "upload",
+    concurrency: 4, // 동시에 최대 4개까지 처리합니다.
+  },
+);
 ```
 
-## Concurrency map
+각 작업의 결과를 배열로 받고 싶다면 `flowbar.map()`을 씁니다.
 
 ```js
 import flowbar from "flowbar";
 
 const results = await flowbar.map(
-  files,
+  ["a.txt", "b.txt", "c.txt"],
   async (file) => {
+    // return한 값이 results 배열에 순서대로 들어갑니다.
     return upload(file);
   },
   {
     label: "upload",
-    concurrency: 8,
+    concurrency: 4,
   },
 );
+
+console.log(results);
 ```
 
-결과 배열이 필요 없으면 `each`를 사용합니다.
+## Async Iterable
 
-```js
-await flowbar.each(files, async (file) => {
-  await upload(file);
-}, {
-  label: "upload",
-  concurrency: 8,
-});
-```
-
-## 수동 제어
+`AsyncIterable`도 같은 방식으로 사용할 수 있습니다. 길이를 자동으로 알 수 없다면 `total`을 직접 넘기면 됩니다.
 
 ```js
 import flowbar from "flowbar";
 
-const bar = flowbar.create({ label: "manual", total: 100 });
+async function* jobs() {
+  yield "job-a";
+  yield "job-b";
+  yield "job-c";
+}
 
-bar.increment(10);
-bar.setPostfix({ phase: "download" });
-bar.increment(20);
+for await (const job of flowbar(jobs(), { label: "jobs", total: 3 })) {
+  // job 하나를 처리할 때마다 progress가 올라갑니다.
+  await runJob(job);
+}
+```
+
+## 수동 Progress Bar
+
+일반적인 반복문으로 표현하기 어려운 작업은 `flowbar.create()`를 쓰면 됩니다.
+
+```js
+import flowbar from "flowbar";
+
+const bar = flowbar.create({
+  label: "download",
+  total: 100,
+});
+
+bar.increment(10); // 10만큼 진행합니다.
+bar.setPostfix({ phase: "metadata" }); // 오른쪽에 추가 정보를 보여줍니다.
+bar.increment(40);
+bar.setLabel("install"); // 화면에 보이는 이름을 바꿉니다.
+bar.increment(50);
 bar.succeed("complete");
 ```
 
-## Indeterminate mode
+## 기다리는 작업
 
-남은 시간을 알 수 없을 때는 fake ETA를 표시하지 않습니다. 대신 상태, elapsed, 애니메이션을 보여 줍니다.
+전체 개수를 아직 모를 때는 `flowbar.wait()`를 쓰면 됩니다. 가짜 ETA를 만들지 않고, 상태와 경과 시간만 보여줍니다.
 
 ```js
 import flowbar from "flowbar";
 
-const wait = flowbar.wait({
+const bar = flowbar.wait({
   label: "connect",
   status: "waiting",
   animation: "marquee",
@@ -132,10 +119,19 @@ const wait = flowbar.wait({
 
 await connectToServer();
 
-wait.succeed("connected");
+bar.succeed("connected");
+```
+
+나중에 전체 개수를 알게 되면 일반 progress bar로 바꿀 수 있습니다.
+
+```js
+bar.setTotal(10); // 이제 percent와 ETA를 보여줄 수 있습니다.
+bar.increment();
 ```
 
 ## Stream byte progress
+
+Node.js stream에서는 `flowbar.stream()`을 쓰면 byte 단위로 진행률을 볼 수 있습니다.
 
 ```js
 import { createReadStream, createWriteStream, statSync } from "node:fs";
@@ -156,7 +152,29 @@ await pipeline(
 );
 ```
 
-## Safe logging
+## 여러 단계 작업
+
+한 명령 안에 여러 단계가 있으면 `flowbar.task()`를 쓰면 됩니다.
+
+```js
+import flowbar from "flowbar";
+
+await flowbar.task("release", async (task) => {
+  await task.step("clean", async () => {
+    // 한 단계짜리 작업입니다.
+    await clean();
+  });
+
+  await task.progress("build", ["web", "cli"], async (target) => {
+    // 같은 progress bar 안에서 build 진행률을 보여줍니다.
+    await build(target);
+  });
+});
+```
+
+## 안전한 로그
+
+progress bar가 떠 있는 중에 `console.log`를 섞으면 화면이 깨질 수 있습니다. 그럴 때는 `bar.log()`, `bar.warn()`, `bar.error()`를 쓰면 됩니다.
 
 ```js
 import flowbar from "flowbar";
@@ -166,53 +184,66 @@ const bar = flowbar.create({ label: "build", total: 3 });
 bar.log("build started");
 bar.increment();
 bar.warn("slow test detected");
-bar.increment();
-bar.increment();
+bar.increment(2);
 bar.succeed("done");
 ```
 
-## Terminal rendering contract
+## Renderer
 
-`flowbar`는 TTY 환경에서 다음 동작을 기본으로 합니다.
+flowbar는 환경에 맞는 출력 방식을 자동으로 고릅니다.
 
-- progress line을 터미널 폭보다 길게 출력하지 않습니다.
-- 빠른 loop에서 `interval` 기준으로 렌더링을 throttle합니다.
-- 터미널 창 크기가 바뀌면 자동으로 레이아웃을 다시 계산합니다.
-- 업데이트마다 새 줄을 만들지 않고 같은 줄 또는 같은 live region을 갱신합니다.
-- 완료, 실패, 취소 시에만 최종 줄을 남깁니다.
-- `charset: "ascii"`에서는 최종 상태 marker도 ASCII로 출력합니다.
-- `color: true`를 주면 최종 상태 marker에 ANSI 색상을 적용합니다.
-- safe logging을 사용할 때는 live region을 보존하면서 로그를 출력합니다.
-- non-TTY, CI, pipe 환경에서는 ANSI 제어 문자를 남기지 않는 plain renderer로 전환합니다.
+- TTY terminal: 같은 줄을 갱신하는 live progress bar
+- CI, pipe, non-TTY: ANSI 제어 문자가 없는 plain log
+- `renderer: "silent"`: 아무것도 출력하지 않음
+- `renderer: "json"`: 줄 단위 JSON 이벤트 출력
+- `renderer: "memory"`: 터미널에 쓰지 않고 `onRender`로만 확인
 
-## Runtime contract
+```js
+const bar = flowbar.create({
+  label: "machine-readable",
+  total: 2,
+  renderer: "json",
+});
+```
 
-- `total`, `current`, `update(value)`, `setTotal(total)`, `increment(delta)`, `concurrency`는 finite number여야 합니다.
-- `total`, `current`, `setTotal(total)`은 음수를 허용하지 않습니다.
-- `setMode(mode)`는 `"auto"`, `"determinate"`, `"counting"`, `"indeterminate"`만 허용합니다.
-- `ProgressBar`의 공개 상태 필드는 getter로 노출되며 직접 대입으로 변경하지 않습니다. 상태 변경은 `increment`, `update`, `setTotal`, `setStatus`, `setPostfix`를 사용합니다.
-- `map`/`each` 처리 중 mapper 또는 handler가 실패하면 bar는 failure 상태가 되고 async iterator cleanup을 위해 `return()`을 호출합니다.
-- `each`는 대량 작업에서 불필요한 결과 배열을 만들지 않습니다.
+## 자주 쓰는 옵션
 
-## 문서
+- `label`: 화면에 보이는 작업 이름
+- `total`: 전체 작업 개수
+- `unit`: `"item"`, `"byte"`, 또는 직접 정한 단위
+- `concurrency`: `map`, `each`에서 동시에 처리할 개수
+- `interval`: 화면 갱신 최소 간격
+- `leave`: 마지막 줄을 남길지 여부
+- `charset`: `"unicode"` 또는 `"ascii"`
+- `color`: 최종 상태 marker에 색상 적용
+- `signal`: `AbortSignal`로 취소 처리
 
-LLM과 사람이 빠르게 읽기 위한 문서는 다음 순서로 보면 됩니다.
+## CI와 자동 배포
 
-- `docs/index.md`
-- `docs/llm-guide.md`
-- `docs/quickstart.md`
-- `docs/api/flowbar.md`
-- `docs/api/create.md`
-- `docs/api/map.md`
-- `docs/api/stream.md`
-- `docs/api/wait.md`
-- `docs/api/group.md`
-- `docs/api/types.md`
-- `docs/terminal-behavior.md`
+이 저장소에는 GitHub Actions workflow가 들어 있습니다.
 
-전체 문서는 `docs/full.md`에 있습니다.
-LLM용 요약 색인은 `llms.txt`, 전체 LLM 문서는 `llms-full.txt`에 있습니다.
+- `.github/workflows/ci.yml`: push와 pull request에서 typecheck, syntax check, test, package dry-run을 실행합니다.
+- `.github/workflows/release.yml`: `vX.Y.Z` 태그가 push되면 npm에 publish하고 GitHub Release를 만듭니다.
 
-## 라이선스
+예를 들어 `0.1.0`을 배포하려면 다음처럼 태그를 push합니다.
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+release workflow는 repository secret `NPM_TOKEN`을 사용합니다.
+
+## 로컬 검증
+
+```sh
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm pack --dry-run
+```
+
+## License
 
 MIT

@@ -44,9 +44,13 @@ await flowbar.map(items, worker, { concurrency: 4 });
 `each`는 `undefined`를 반환하며 대량 작업에서 결과 배열을 만들지 않습니다.
 
 ```js
-await flowbar.each(files, async (file) => {
-  await upload(file);
-}, { concurrency: 8 });
+await flowbar.each(
+  files,
+  async (file) => {
+    await upload(file);
+  },
+  { concurrency: 8 },
+);
 ```
 
 ## AbortSignal

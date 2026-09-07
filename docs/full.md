@@ -69,13 +69,17 @@ Public `ProgressBar` state is exposed as read-only getters. Use methods such as 
 ## Concurrency
 
 ```js
-const results = await flowbar.map(items, async (item, index, bar) => {
-  bar.setPostfix({ index });
-  return processItem(item);
-}, {
-  label: "items",
-  concurrency: 8,
-});
+const results = await flowbar.map(
+  items,
+  async (item, index, bar) => {
+    bar.setPostfix({ index });
+    return processItem(item);
+  },
+  {
+    label: "items",
+    concurrency: 8,
+  },
+);
 ```
 
 `map` returns results in input order. `concurrency` must be a finite number greater than or equal to 1.
@@ -83,12 +87,16 @@ const results = await flowbar.map(items, async (item, index, bar) => {
 Use `each` when no result array is needed:
 
 ```js
-await flowbar.each(items, async (item) => {
-  await processItem(item);
-}, {
-  label: "items",
-  concurrency: 8,
-});
+await flowbar.each(
+  items,
+  async (item) => {
+    await processItem(item);
+  },
+  {
+    label: "items",
+    concurrency: 8,
+  },
+);
 ```
 
 If mapper or handler fails, the bar fails and async iterator `return()` is called when available.

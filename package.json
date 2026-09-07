@@ -4,6 +4,14 @@
   "description": "A zero-dependency progress toolkit for modern Node.js workflows.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gaon12/flowbar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gaon12/flowbar/issues"
+  },
+  "homepage": "https://github.com/gaon12/flowbar#readme",
   "keywords": [
     "progress",
     "progress-bar",
@@ -39,13 +47,17 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "npm run typecheck && npm run check",
-    "test": "node --test test/*.mjs",
+    "lint": "biome check . && npm run typecheck",
+    "test": "npm run build && node --test test/*.mjs",
     "check": "node --check dist/index.js",
-    "prepack": "npm run build && npm test",
-    "prepare:zip": "npm run build && npm test && node --check dist/index.js"
+    "prepack": "npm test",
+    "prepare:zip": "npm test && node --check dist/index.js",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.12",
     "@types/node": "^24.0.0",
     "typescript": "^5.8.0"
   }

@@ -3,8 +3,9 @@
  *
  * 패키지는 zero runtime dependency를 유지하기 위해 Node.js core API만 사용합니다.
  */
-import { Transform } from "node:stream";
+
 import { performance } from "node:perf_hooks";
+import { Transform } from "node:stream";
 
 export type FlowbarMode = "auto" | "determinate" | "counting" | "indeterminate";
 export type FlowbarAnimation = "spinner" | "marquee" | "bounce" | "pulse";
@@ -116,7 +117,12 @@ export type FlowbarTaskApi = {
   readonly bar: ProgressBar;
   step<T>(label: string, handler: (bar: ProgressBar) => T | Promise<T>): Promise<T>;
   indeterminate<T>(label: string, handler: (bar: ProgressBar) => T | Promise<T>): Promise<T>;
-  progress<T>(label: string, items: Iterable<T> | AsyncIterable<T>, handler: FlowbarHandler<T>, options?: FlowbarMapOptions): Promise<void>;
+  progress<T>(
+    label: string,
+    items: Iterable<T> | AsyncIterable<T>,
+    handler: FlowbarHandler<T>,
+    options?: FlowbarMapOptions,
+  ): Promise<void>;
 };
 
 export interface FlowbarFunction {
@@ -126,16 +132,34 @@ export interface FlowbarFunction {
   wait(options?: FlowbarOptions): ProgressBar;
   indeterminate(options?: FlowbarOptions): ProgressBar;
   spinner(options?: FlowbarOptions): ProgressBar;
-  map<T, R>(input: Iterable<T> | AsyncIterable<T>, mapper: FlowbarMapper<T, R>, options?: FlowbarMapOptions): Promise<R[]>;
-  each<T>(input: Iterable<T> | AsyncIterable<T>, handler: FlowbarHandler<T>, options?: FlowbarMapOptions): Promise<void>;
+  map<T, R>(
+    input: Iterable<T> | AsyncIterable<T>,
+    mapper: FlowbarMapper<T, R>,
+    options?: FlowbarMapOptions,
+  ): Promise<R[]>;
+  each<T>(
+    input: Iterable<T> | AsyncIterable<T>,
+    handler: FlowbarHandler<T>,
+    options?: FlowbarMapOptions,
+  ): Promise<void>;
   stream(options?: FlowbarOptions): Transform & { flowbar: ProgressBar };
   group(options?: FlowbarOptions): FlowbarGroup;
-  task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Promise<T>, options?: FlowbarOptions): Promise<T>;
+  task<T>(
+    label: string,
+    handler: (task: FlowbarTaskApi) => T | Promise<T>,
+    options?: FlowbarOptions,
+  ): Promise<T>;
   configure(defaultOptions?: FlowbarOptions): FlowbarFunction;
   ProgressBar: typeof ProgressBar;
 }
 
-type RendererFinishState = "success" | "failure" | "cancelled" | "closed";
+export type FlowbarFinishState = "success" | "failure" | "cancelled" | "closed";
+type RendererFinishState = FlowbarFinishState;
+export type FlowbarCloseCallback = (
+  bar: ProgressBar,
+  state: FlowbarFinishState,
+  message: string,
+) => void;
 
 type Renderer = {
   register(bar: ProgressBar): void;
@@ -149,7 +173,9 @@ type AsyncIteratorLike<T> = AsyncIterator<T> & {
   return?(value?: unknown): Promise<IteratorResult<T>> | IteratorResult<T>;
 };
 
-type WorkItem<T> = { done: true; value: undefined; index: -1 } | { done: false; value: T; index: number };
+type WorkItem<T> =
+  | { done: true; value: undefined; index: -1 }
+  | { done: false; value: T; index: number };
 
 const DEFAULT_SPINNER_UNICODE = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const DEFAULT_SPINNER_ASCII = ["-", "\\", "|", "/"];
@@ -178,7 +204,9 @@ function clampNumber(value: number, minimum: number, maximum: number): number {
 }
 
 function isAbortErrorLike(error: unknown): error is { name: "AbortError" } {
-  return error != null && typeof error === "object" && "name" in error && error.name === "AbortError";
+  return (
+    error != null && typeof error === "object" && "name" in error && error.name === "AbortError"
+  );
 }
 
 function makeAbortError(): Error {
@@ -194,7 +222,10 @@ function ensureNotAborted(signal: AbortSignal | undefined): void {
 }
 
 function isAsyncIterable<T = unknown>(value: unknown): value is AsyncIterable<T> {
-  return value != null && typeof (value as Partial<AsyncIterable<T>>)[Symbol.asyncIterator] === "function";
+  return (
+    value != null &&
+    typeof (value as Partial<AsyncIterable<T>>)[Symbol.asyncIterator] === "function"
+  );
 }
 
 function isIterable<T = unknown>(value: unknown): value is Iterable<T> {
@@ -214,7 +245,10 @@ function inferTotal(input: unknown): number | undefined {
   return undefined;
 }
 
-function chooseCharset(options: FlowbarOptions, output: WritableLike): Exclude<FlowbarCharset, "auto"> {
+function chooseCharset(
+  options: FlowbarOptions,
+  output: WritableLike,
+): Exclude<FlowbarCharset, "auto"> {
   if (options.charset === "ascii") {
     return "ascii";
   }
@@ -252,7 +286,11 @@ function codePointWidth(codePoint: number): number {
   if (codePoint === 0) {
     return 0;
   }
-  if (isZeroWidthCodePoint(codePoint) || codePoint < 32 || (codePoint >= 0x7f && codePoint < 0xa0)) {
+  if (
+    isZeroWidthCodePoint(codePoint) ||
+    codePoint < 32 ||
+    (codePoint >= 0x7f && codePoint < 0xa0)
+  ) {
     return 0;
   }
   if (
@@ -300,7 +338,7 @@ function truncateDisplay(value: unknown, maxWidth: number): string {
   let result = "";
   let width = 0;
   const targetWidth = Math.max(0, maxWidth - 1);
-  for (let index = 0; index < text.length;) {
+  for (let index = 0; index < text.length; ) {
     const ansi = readAnsiSequence(text, index);
     if (ansi) {
       result += ansi;
@@ -447,7 +485,12 @@ function normalizeMode(mode: unknown): FlowbarMode {
   if (mode == null || mode === "") {
     return "auto";
   }
-  if (mode === "auto" || mode === "determinate" || mode === "counting" || mode === "indeterminate") {
+  if (
+    mode === "auto" ||
+    mode === "determinate" ||
+    mode === "counting" ||
+    mode === "indeterminate"
+  ) {
     return mode;
   }
   throw new TypeError(`mode must be one of "auto", "determinate", "counting", or "indeterminate".`);
@@ -457,7 +500,12 @@ function normalizeAnimation(animation: unknown): FlowbarAnimation {
   if (animation == null || animation === "") {
     return "spinner";
   }
-  if (animation === "spinner" || animation === "marquee" || animation === "bounce" || animation === "pulse") {
+  if (
+    animation === "spinner" ||
+    animation === "marquee" ||
+    animation === "bounce" ||
+    animation === "pulse"
+  ) {
     return animation;
   }
   throw new TypeError(`animation must be one of "spinner", "marquee", "bounce", or "pulse".`);
@@ -488,13 +536,18 @@ function normalizeOptions(options: FlowbarOptions = {}): RequiredNormalizedFlowb
   const output = options.output || process.stderr;
   const renderer = options.renderer || "auto";
   const unit = options.unit || "item";
-  const interval = isFiniteNumber(options.interval) ? Math.max(16, options.interval) : DEFAULT_INTERVAL_MS;
+  const interval = isFiniteNumber(options.interval)
+    ? Math.max(16, options.interval)
+    : DEFAULT_INTERVAL_MS;
   return {
     ...options,
     output,
     renderer,
     unit,
     interval,
+    indeterminateInterval: isFiniteNumber(options.indeterminateInterval)
+      ? Math.max(16, options.indeterminateInterval)
+      : undefined,
     mode: normalizeMode(options.mode),
     preset: normalizePreset(options.preset),
     animation: normalizeAnimation(options.animation || options.indeterminateStyle),
@@ -504,7 +557,9 @@ function normalizeOptions(options: FlowbarOptions = {}): RequiredNormalizedFlowb
     color: options.color === true,
     dynamicWidth: options.dynamicWidth !== false,
     adaptiveLayout: options.adaptiveLayout !== false,
-    wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns) ? Math.max(0, options.wrapGuardColumns) : 1,
+    wrapGuardColumns: isFiniteNumber(options.wrapGuardColumns)
+      ? Math.max(0, options.wrapGuardColumns)
+      : 1,
     rateSmoothing: isFiniteNumber(options.rateSmoothing)
       ? clampNumber(options.rateSmoothing, 0, 0.99)
       : DEFAULT_RATE_SMOOTHING,
@@ -512,9 +567,10 @@ function normalizeOptions(options: FlowbarOptions = {}): RequiredNormalizedFlowb
       ? Math.max(0, options.minElapsedMsForEta)
       : DEFAULT_MIN_ETA_ELAPSED_MS,
     charset: chooseCharset(options, output),
-    spinnerFrames: Array.isArray(options.spinnerFrames) && options.spinnerFrames.length > 0
-      ? options.spinnerFrames.map(String)
-      : undefined,
+    spinnerFrames:
+      Array.isArray(options.spinnerFrames) && options.spinnerFrames.length > 0
+        ? options.spinnerFrames.map(String)
+        : undefined,
   };
 }
 
@@ -547,7 +603,11 @@ function makeIndeterminateBar(
   const safeWidth = Math.max(1, Math.floor(width));
   const full = charset === "ascii" ? "#" : "█";
   const empty = charset === "ascii" ? "-" : "░";
-  const segment = clampNumber(Math.floor(segmentWidth || Math.max(3, safeWidth * 0.28)), 1, safeWidth);
+  const segment = clampNumber(
+    Math.floor(segmentWidth || Math.max(3, safeWidth * 0.28)),
+    1,
+    safeWidth,
+  );
   const chars: string[] = Array.from({ length: safeWidth }, () => empty);
 
   if (style === "pulse") {
@@ -555,9 +615,10 @@ function makeIndeterminateBar(
     const minSegment = Math.min(segment, maxSegment);
     const cycle = Math.max(1, (maxSegment - minSegment) * 2);
     const step = frameIndex % cycle;
-    const size = step <= maxSegment - minSegment
-      ? minSegment + step
-      : maxSegment - (step - (maxSegment - minSegment));
+    const size =
+      step <= maxSegment - minSegment
+        ? minSegment + step
+        : maxSegment - (step - (maxSegment - minSegment));
     const start = Math.floor((safeWidth - size) / 2);
     for (let index = start; index < start + size; index += 1) {
       chars[index] = full;
@@ -592,7 +653,11 @@ function compactLine(line: string, width: number): string {
   return truncateDisplay(line.replace(/\s+/g, " ").trim(), width);
 }
 
-function colorize(value: string, code: number, options: Readonly<RequiredNormalizedFlowbarOptions>): string {
+function colorize(
+  value: string,
+  code: number,
+  options: Readonly<RequiredNormalizedFlowbarOptions>,
+): string {
   if (!options.color) {
     return value;
   }
@@ -608,7 +673,8 @@ function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string 
   const label = options.label ? `${options.label}  ` : "";
   const count = `${formatAmount(current, options.unit)}/${formatAmount(total, options.unit)}`;
   const elapsed = formatDuration(snapshot.timing.elapsedMs);
-  const remaining = snapshot.timing.remainingMs == null ? "--:--" : formatDuration(snapshot.timing.remainingMs);
+  const remaining =
+    snapshot.timing.remainingMs == null ? "--:--" : formatDuration(snapshot.timing.remainingMs);
   const rate = formatRate(snapshot.timing.ratePerSecond || 0, options.unit);
   const postfix = stringifyPostfix(snapshot.postfix);
   const charset = options.charset;
@@ -634,7 +700,7 @@ function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string 
     tailCandidates.push(` ${postfix}`);
   }
 
-  let tails = tailCandidates.slice();
+  const tails = tailCandidates.slice();
   while (tails.length >= 0) {
     const tail = tails.join("");
     const fixedWidth = displayWidth(`${label}${percent} ||${tail}`);
@@ -656,7 +722,10 @@ function buildCountingLine(snapshot: FlowbarSnapshot, width: number): string {
   const { options } = snapshot;
   const label = options.label ? `${options.label}  ` : "";
   const unit = pluralizeUnit(options.unit || "item", snapshot.current);
-  const count = options.unit === "byte" ? formatBytes(snapshot.current) : `${formatAmount(snapshot.current, options.unit)} ${unit}`;
+  const count =
+    options.unit === "byte"
+      ? formatBytes(snapshot.current)
+      : `${formatAmount(snapshot.current, options.unit)} ${unit}`;
   const elapsed = formatDuration(snapshot.timing.elapsedMs);
   const rate = formatRate(snapshot.timing.ratePerSecond || 0, options.unit);
   const postfix = stringifyPostfix(snapshot.postfix);
@@ -680,20 +749,30 @@ function buildIndeterminateLine(snapshot: FlowbarSnapshot, width: number): strin
   const elapsed = formatDuration(snapshot.timing.elapsedMs);
   const status = snapshot.status || options.status || "running";
   const charset = options.charset;
-  const frames = options.spinnerFrames || (charset === "ascii" ? DEFAULT_SPINNER_ASCII : DEFAULT_SPINNER_UNICODE);
+  const frames =
+    options.spinnerFrames ||
+    (charset === "ascii" ? DEFAULT_SPINNER_ASCII : DEFAULT_SPINNER_UNICODE);
   const spinner = frames[snapshot.frameIndex % frames.length];
   const animation = options.animation || "spinner";
 
   if (animation !== "spinner") {
     const tail = ` ${status} | elapsed ${elapsed}`;
     const fixedWidth = displayWidth(`${label} ||${tail}`);
-    const wantedWidth = isFiniteNumber(options.indeterminateWidth) ? options.indeterminateWidth : width - fixedWidth;
+    const wantedWidth = isFiniteNumber(options.indeterminateWidth)
+      ? options.indeterminateWidth
+      : width - fixedWidth;
     const barWidth = Math.floor(Math.min(Math.max(0, wantedWidth), width - fixedWidth));
     if (barWidth >= 6) {
       const segmentWidth = isFiniteNumber(options.indeterminateSegmentWidth)
         ? options.indeterminateSegmentWidth
         : Math.max(3, Math.floor(barWidth * 0.28));
-      const bar = makeIndeterminateBar(barWidth, snapshot.frameIndex, animation, segmentWidth, charset);
+      const bar = makeIndeterminateBar(
+        barWidth,
+        snapshot.frameIndex,
+        animation,
+        segmentWidth,
+        charset,
+      );
       return compactLine(`${label}|${bar}|${tail}`, width);
     }
     if (options.adaptiveLayout !== false) {
@@ -714,7 +793,12 @@ function buildIndeterminateLine(snapshot: FlowbarSnapshot, width: number): strin
   return compactLine(candidates[candidates.length - 1], width);
 }
 
-function buildFinalLine(snapshot: FlowbarSnapshot, state: RendererFinishState, message: string, width: number): string {
+function buildFinalLine(
+  snapshot: FlowbarSnapshot,
+  state: RendererFinishState,
+  message: string,
+  width: number,
+): string {
   const { options } = snapshot;
   const label = options.label || "flowbar";
   const elapsed = formatDuration(snapshot.timing.elapsedMs);
@@ -724,7 +808,10 @@ function buildFinalLine(snapshot: FlowbarSnapshot, state: RendererFinishState, m
   const cancelledMarker = colorize(options.charset === "ascii" ? "[CANCEL]" : "■", 33, options);
   if (state === "success") {
     if (snapshot.total != null) {
-      return compactLine(`${successMarker} ${label}  done in ${elapsed} | ${formatAmount(snapshot.current, options.unit)}/${formatAmount(snapshot.total, options.unit)}${suffix}`, width);
+      return compactLine(
+        `${successMarker} ${label}  done in ${elapsed} | ${formatAmount(snapshot.current, options.unit)}/${formatAmount(snapshot.total, options.unit)}${suffix}`,
+        width,
+      );
     }
     return compactLine(`${successMarker} ${label}  done in ${elapsed}${suffix}`, width);
   }
@@ -812,7 +899,12 @@ class PlainRenderer implements Renderer {
       return;
     }
     const snapshot = bar.snapshot();
-    const line = buildFinalLine(snapshot, state, message, getTerminalWidth(this.options.output, this.options));
+    const line = buildFinalLine(
+      snapshot,
+      state,
+      message,
+      getTerminalWidth(this.options.output, this.options),
+    );
     this.options.output.write(`${line}\n`);
     this.options.onRender?.(line, snapshot);
   }
@@ -825,14 +917,21 @@ class PlainRenderer implements Renderer {
 
 class JsonRenderer implements Renderer {
   readonly options: RequiredNormalizedFlowbarOptions;
+  private lastWriteAt: number;
 
   constructor(options: RequiredNormalizedFlowbarOptions) {
     this.options = options;
+    this.lastWriteAt = 0;
   }
   register(bar: ProgressBar): void {
     this.update(bar, true);
   }
-  update(bar: ProgressBar, _force = false): void {
+  update(bar: ProgressBar, force = false): void {
+    const currentTime = now();
+    if (!force && currentTime - this.lastWriteAt < this.options.interval) {
+      return;
+    }
+    this.lastWriteAt = currentTime;
     const snapshot = bar.snapshot();
     const line = JSON.stringify({ type: "progress", snapshot });
     this.options.output.write(`${line}\n`);
@@ -949,7 +1048,9 @@ class TerminalHub {
     }
     this.lastRenderAt = currentTime;
     const bars = Array.from(this.entries.values()).filter((bar) => !bar.closed);
-    const lines = bars.map((bar) => buildLine(bar.snapshot(), getTerminalWidth(this.output, bar.options)));
+    const lines = bars.map((bar) =>
+      buildLine(bar.snapshot(), getTerminalWidth(this.output, bar.options)),
+    );
     if (lines.length === 0) {
       this.deleteLiveRegion();
       return;
@@ -1011,7 +1112,12 @@ class TerminalRenderer implements Renderer {
 }
 
 function isCiEnvironment(): boolean {
-  return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true" || process.env.GITLAB_CI === "true" || process.env.BITBUCKET_BUILD_NUMBER != null;
+  return (
+    process.env.CI === "true" ||
+    process.env.GITHUB_ACTIONS === "true" ||
+    process.env.GITLAB_CI === "true" ||
+    process.env.BITBUCKET_BUILD_NUMBER != null
+  );
 }
 
 function createRenderer(options: RequiredNormalizedFlowbarOptions): Renderer {
@@ -1046,11 +1152,11 @@ export class ProgressBar {
   private startedAtValue: number;
   private updatedAtValue: number;
   private lastRateAt: number;
-  private lastRateValue: number;
   private ratePerSecond: number | null;
   private frameIndexValue: number;
   private closedValue: boolean;
   private readonly renderer: Renderer;
+  private readonly closeListeners: Set<FlowbarCloseCallback>;
   private abortHandler: (() => void) | undefined;
   private animationTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -1058,18 +1164,19 @@ export class ProgressBar {
     this.id = nextProgressBarId;
     nextProgressBarId += 1;
     this.normalizedOptions = normalizeOptions(options);
-    this.currentValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.current, "current") ?? 0;
+    this.currentValue =
+      normalizeOptionalNonNegativeNumber(this.normalizedOptions.current, "current") ?? 0;
     this.totalValue = normalizeOptionalNonNegativeNumber(this.normalizedOptions.total, "total");
     this.statusValue = this.normalizedOptions.status;
     this.postfixValue = { ...(this.normalizedOptions.postfix || {}) };
     this.startedAtValue = now();
     this.updatedAtValue = this.startedAtValue;
     this.lastRateAt = this.startedAtValue;
-    this.lastRateValue = this.currentValue;
     this.ratePerSecond = null;
     this.frameIndexValue = 0;
     this.closedValue = false;
     this.renderer = createRenderer(this.normalizedOptions);
+    this.closeListeners = new Set();
     this.abortHandler = undefined;
     this.animationTimer = undefined;
 
@@ -1085,7 +1192,7 @@ export class ProgressBar {
     }
 
     this.renderer.register(this);
-    this.startAnimationIfNeeded();
+    this.syncAnimationTimer();
   }
 
   get options(): Readonly<RequiredNormalizedFlowbarOptions> {
@@ -1105,6 +1212,10 @@ export class ProgressBar {
 
   get status(): string {
     return this.statusValue;
+  }
+
+  get label(): string | undefined {
+    return this.normalizedOptions.label;
   }
 
   get postfix(): Record<string, unknown> {
@@ -1143,10 +1254,16 @@ export class ProgressBar {
   snapshot(): FlowbarSnapshot {
     const currentTime = now();
     const elapsedMs = Math.max(0, currentTime - this.startedAtValue);
-    const rate = this.ratePerSecond ?? (elapsedMs > 0 && this.currentValue > 0 ? this.currentValue / (elapsedMs / 1000) : null);
-    const remainingMs = this.totalValue != null && rate != null && rate > 0 && elapsedMs >= this.normalizedOptions.minElapsedMsForEta
-      ? Math.max(0, (this.totalValue - this.currentValue) / rate) * 1000
-      : null;
+    const rate =
+      this.ratePerSecond ??
+      (elapsedMs > 0 && this.currentValue > 0 ? this.currentValue / (elapsedMs / 1000) : null);
+    const remainingMs =
+      this.totalValue != null &&
+      rate != null &&
+      rate > 0 &&
+      elapsedMs >= this.normalizedOptions.minElapsedMsForEta
+        ? Math.max(0, (this.totalValue - this.currentValue) / rate) * 1000
+        : null;
     return {
       id: this.id,
       current: this.currentValue,
@@ -1183,7 +1300,6 @@ export class ProgressBar {
       }
     }
     this.lastRateAt = currentTime;
-    this.lastRateValue = nextValue;
     this.updatedAtValue = currentTime;
   }
 
@@ -1194,20 +1310,40 @@ export class ProgressBar {
     this.renderer.update(this, force);
   }
 
-  private startAnimationIfNeeded(): void {
-    const interval = this.normalizedOptions.indeterminateInterval || this.normalizedOptions.interval;
-    if (!this.normalizedOptions.enabled || this.normalizedOptions.renderer === "silent") {
+  private shouldRunAnimation(): boolean {
+    return (
+      !this.closedValue &&
+      this.normalizedOptions.enabled &&
+      this.normalizedOptions.renderer !== "silent" &&
+      this.getMode() === "indeterminate"
+    );
+  }
+
+  private stopAnimationTimer(): void {
+    if (this.animationTimer) {
+      clearInterval(this.animationTimer);
+      this.animationTimer = undefined;
+    }
+  }
+
+  private syncAnimationTimer(): void {
+    if (!this.shouldRunAnimation()) {
+      this.stopAnimationTimer();
       return;
     }
+    if (this.animationTimer) {
+      return;
+    }
+    const interval =
+      this.normalizedOptions.indeterminateInterval || this.normalizedOptions.interval;
     this.animationTimer = setInterval(() => {
-      if (this.closedValue) {
+      if (!this.shouldRunAnimation()) {
+        this.stopAnimationTimer();
         return;
       }
-      if (this.getMode() === "indeterminate") {
-        this.frameIndexValue += 1;
-        this.updatedAtValue = now();
-        this.renderer.update(this, true);
-      }
+      this.frameIndexValue += 1;
+      this.updatedAtValue = now();
+      this.renderer.update(this, true);
     }, interval);
     if (typeof this.animationTimer.unref === "function") {
       this.animationTimer.unref();
@@ -1219,9 +1355,11 @@ export class ProgressBar {
       return this;
     }
     const numericDelta = assertFiniteNumber(delta, "delta");
+    normalizeNonNegativeNumber(numericDelta, "delta");
     const previous = this.currentValue;
     this.currentValue = Math.max(0, this.currentValue + numericDelta);
     this.updateRate(previous, this.currentValue);
+    this.syncAnimationTimer();
     this.render(false);
     return this;
   }
@@ -1233,6 +1371,7 @@ export class ProgressBar {
     const previous = this.currentValue;
     this.currentValue = Math.max(0, assertFiniteNumber(value, "value"));
     this.updateRate(previous, this.currentValue);
+    this.syncAnimationTimer();
     this.render(false);
     return this;
   }
@@ -1244,8 +1383,11 @@ export class ProgressBar {
     this.totalValue = normalizeOptionalNonNegativeNumber(total, "total");
     if (this.totalValue != null) {
       this.normalizedOptions.mode = "determinate";
+    } else if (this.normalizedOptions.mode === "determinate") {
+      this.normalizedOptions.mode = "auto";
     }
     this.updatedAtValue = now();
+    this.syncAnimationTimer();
     this.render(true);
     return this;
   }
@@ -1256,6 +1398,7 @@ export class ProgressBar {
     }
     this.normalizedOptions.mode = normalizeMode(mode);
     this.updatedAtValue = now();
+    this.syncAnimationTimer();
     this.render(true);
     return this;
   }
@@ -1270,6 +1413,16 @@ export class ProgressBar {
     return this;
   }
 
+  setLabel(label: string | undefined): this {
+    if (this.closedValue) {
+      return this;
+    }
+    this.normalizedOptions.label = label == null || label === "" ? undefined : String(label);
+    this.updatedAtValue = now();
+    this.render(true);
+    return this;
+  }
+
   setPostfix(postfix: Record<string, unknown>): this {
     if (this.closedValue) {
       return this;
@@ -1277,6 +1430,18 @@ export class ProgressBar {
     this.postfixValue = { ...(postfix || {}) };
     this.updatedAtValue = now();
     this.render(true);
+    return this;
+  }
+
+  onClose(listener: FlowbarCloseCallback): this {
+    if (typeof listener !== "function") {
+      throw new TypeError("onClose(listener) expects listener to be a function.");
+    }
+    if (this.closedValue) {
+      listener(this, "closed", "");
+      return this;
+    }
+    this.closeListeners.add(listener);
     return this;
   }
 
@@ -1317,16 +1482,18 @@ export class ProgressBar {
     }
     this.closedValue = true;
     this.updatedAtValue = now();
-    if (this.animationTimer) {
-      clearInterval(this.animationTimer);
-      this.animationTimer = undefined;
-    }
+    this.stopAnimationTimer();
     if (this.normalizedOptions.signal && this.abortHandler) {
       this.normalizedOptions.signal.removeEventListener("abort", this.abortHandler);
       this.abortHandler = undefined;
     }
-    this.renderer.finalize(this, state, safeMessage(message), this.normalizedOptions.leave);
+    const finalMessage = safeMessage(message);
+    this.renderer.finalize(this, state, finalMessage, this.normalizedOptions.leave);
     this.renderer.dispose?.();
+    for (const listener of this.closeListeners) {
+      listener(this, state, finalMessage);
+    }
+    this.closeListeners.clear();
     return this;
   }
 }
@@ -1364,7 +1531,10 @@ function wrapSyncIterable<T>(input: Iterable<T>, options: FlowbarOptions = {}): 
   return generator();
 }
 
-function wrapAsyncIterable<T>(input: AsyncIterable<T>, options: FlowbarOptions = {}): AsyncIterable<T> {
+function wrapAsyncIterable<T>(
+  input: AsyncIterable<T>,
+  options: FlowbarOptions = {},
+): AsyncIterable<T> {
   const total = options.total ?? inferTotal(input);
   const bar = createProgressBar({ ...options, total });
   async function* generator() {
@@ -1393,7 +1563,10 @@ function wrapAsyncIterable<T>(input: AsyncIterable<T>, options: FlowbarOptions =
   return generator();
 }
 
-function flowbar<T>(input: Iterable<T> | AsyncIterable<T>, options: FlowbarOptions = {}): Iterable<T> | AsyncIterable<T> {
+function flowbar<T>(
+  input: Iterable<T> | AsyncIterable<T>,
+  options: FlowbarOptions = {},
+): Iterable<T> | AsyncIterable<T> {
   if (isAsyncIterable(input)) {
     return wrapAsyncIterable(input, options);
   }
@@ -1435,22 +1608,29 @@ async function runWithProgress<T, R>(
   handler: FlowbarMapper<T, R>,
   options: FlowbarMapOptions,
   collectResults: true,
+  progressBar?: ProgressBar,
+  finishBar?: boolean,
 ): Promise<R[]>;
 async function runWithProgress<T>(
   input: Iterable<T> | AsyncIterable<T>,
   handler: FlowbarHandler<T>,
   options: FlowbarMapOptions,
   collectResults: false,
+  progressBar?: ProgressBar,
+  finishBar?: boolean,
 ): Promise<void>;
 async function runWithProgress<T, R>(
   input: Iterable<T> | AsyncIterable<T>,
   handler: FlowbarMapper<T, R> | FlowbarHandler<T>,
   options: FlowbarMapOptions,
   collectResults: boolean,
+  progressBar?: ProgressBar,
+  finishBar = true,
+  // biome-ignore lint/suspicious/noConfusingVoidType: implementation serves both array and void overloads.
 ): Promise<R[] | void> {
   const total = options.total ?? inferTotal(input);
   const concurrency = normalizeConcurrency(options.concurrency);
-  const bar = createProgressBar({ ...options, total });
+  const bar = progressBar || createProgressBar({ ...options, total });
   const iterator = toAsyncIterator(input);
   const results: R[] = [];
   let nextIndex = 0;
@@ -1491,28 +1671,40 @@ async function runWithProgress<T, R>(
 
   try {
     await Promise.all(Array.from({ length: concurrency }, () => worker()));
-    bar.succeed();
+    if (finishBar) {
+      bar.succeed();
+    }
     return collectResults ? results : undefined;
   } catch (error) {
     stopped = true;
     await closeIterator(iterator);
-    if (isAbortErrorLike(error)) {
-      bar.cancel("aborted");
-    } else {
-      bar.fail(error);
+    if (finishBar) {
+      if (isAbortErrorLike(error)) {
+        bar.cancel("aborted");
+      } else {
+        bar.fail(error);
+      }
     }
     throw error;
   }
 }
 
-async function mapWithProgress<T, R>(input: Iterable<T> | AsyncIterable<T>, mapper: FlowbarMapper<T, R>, options: FlowbarMapOptions = {}): Promise<R[]> {
+async function mapWithProgress<T, R>(
+  input: Iterable<T> | AsyncIterable<T>,
+  mapper: FlowbarMapper<T, R>,
+  options: FlowbarMapOptions = {},
+): Promise<R[]> {
   if (typeof mapper !== "function") {
     throw new TypeError("flowbar.map(input, mapper) expects mapper to be a function.");
   }
   return runWithProgress(input, mapper, options, true);
 }
 
-async function eachWithProgress<T>(input: Iterable<T> | AsyncIterable<T>, handler: FlowbarHandler<T>, options: FlowbarMapOptions = {}): Promise<void> {
+async function eachWithProgress<T>(
+  input: Iterable<T> | AsyncIterable<T>,
+  handler: FlowbarHandler<T>,
+  options: FlowbarMapOptions = {},
+): Promise<void> {
   if (typeof handler !== "function") {
     throw new TypeError("flowbar.each(input, handler) expects handler to be a function.");
   }
@@ -1523,9 +1715,20 @@ function streamWithProgress(options: FlowbarOptions = {}): Transform & { flowbar
   const bar = createProgressBar({ ...options, unit: options.unit || "byte" });
   const unit = bar.options.unit;
   const transform = new Transform({
-    transform(chunk: unknown, _encoding: BufferEncoding, callback: (error?: Error | null, data?: unknown) => void) {
+    transform(
+      chunk: unknown,
+      _encoding: BufferEncoding,
+      callback: (error?: Error | null, data?: unknown) => void,
+    ) {
       try {
-        const amount = unit === "byte" && chunk != null && typeof chunk === "object" && "length" in chunk && isFiniteNumber(chunk.length) ? chunk.length : 1;
+        const amount =
+          unit === "byte" &&
+          chunk != null &&
+          typeof chunk === "object" &&
+          "length" in chunk &&
+          isFiniteNumber(chunk.length)
+            ? chunk.length
+            : 1;
         bar.increment(amount);
         callback(null, chunk);
       } catch (error) {
@@ -1561,6 +1764,9 @@ function createGroup(options: FlowbarOptions = {}): FlowbarGroup {
   const bars = new Set<ProgressBar>();
   function track(bar: ProgressBar): ProgressBar {
     bars.add(bar);
+    bar.onClose(() => {
+      bars.delete(bar);
+    });
     return bar;
   }
   return {
@@ -1582,22 +1788,50 @@ function createGroup(options: FlowbarOptions = {}): FlowbarGroup {
   };
 }
 
-async function task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Promise<T>, options: FlowbarOptions = {}): Promise<T> {
-  const root = createProgressBar({ ...options, label, mode: "indeterminate", status: options.status || "running" });
+async function task<T>(
+  label: string,
+  handler: (task: FlowbarTaskApi) => T | Promise<T>,
+  options: FlowbarOptions = {},
+): Promise<T> {
+  const root = createProgressBar({
+    ...options,
+    label,
+    mode: "indeterminate",
+    status: options.status || "running",
+  });
   const taskApi: FlowbarTaskApi = {
     bar: root,
-    async step<U>(stepLabel: string, stepHandler: (bar: ProgressBar) => U | Promise<U>): Promise<U> {
+    async step<U>(
+      stepLabel: string,
+      stepHandler: (bar: ProgressBar) => U | Promise<U>,
+    ): Promise<U> {
       root.setStatus(stepLabel);
       return stepHandler(root);
     },
-    async indeterminate<U>(stepLabel: string, stepHandler: (bar: ProgressBar) => U | Promise<U>): Promise<U> {
+    async indeterminate<U>(
+      stepLabel: string,
+      stepHandler: (bar: ProgressBar) => U | Promise<U>,
+    ): Promise<U> {
       root.setMode("indeterminate");
       root.setStatus(stepLabel);
       return stepHandler(root);
     },
-    async progress<U>(stepLabel: string, items: Iterable<U> | AsyncIterable<U>, itemHandler: FlowbarHandler<U>, progressOptions: FlowbarMapOptions = {}): Promise<void> {
-      root.close();
-      return eachWithProgress(items, itemHandler, { ...options, ...progressOptions, label: stepLabel });
+    async progress<U>(
+      stepLabel: string,
+      items: Iterable<U> | AsyncIterable<U>,
+      itemHandler: FlowbarHandler<U>,
+      progressOptions: FlowbarMapOptions = {},
+    ): Promise<void> {
+      const total = progressOptions.total ?? inferTotal(items);
+      root.setLabel(stepLabel).setStatus("running").update(0).setTotal(total);
+      await runWithProgress(
+        items,
+        itemHandler,
+        { ...options, ...progressOptions, label: stepLabel, total },
+        false,
+        root,
+        false,
+      );
     },
   };
   try {
@@ -1608,25 +1842,36 @@ async function task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Pro
     return result;
   } catch (error) {
     if (!root.closed) {
-      root.fail(error);
+      if (isAbortErrorLike(error)) {
+        root.cancel("aborted");
+      } else {
+        root.fail(error);
+      }
     }
     throw error;
   }
 }
 
 export function configure(defaultOptions: FlowbarOptions = {}): FlowbarFunction {
-  const configured = function configuredFlowbar<T>(input: Iterable<T> | AsyncIterable<T>, options: FlowbarOptions = {}) {
+  const configured = function configuredFlowbar<T>(
+    input: Iterable<T> | AsyncIterable<T>,
+    options: FlowbarOptions = {},
+  ) {
     return flowbar(input, { ...defaultOptions, ...options });
   } as FlowbarFunction;
   configured.create = (options = {}) => createProgressBar({ ...defaultOptions, ...options });
-  configured.wait = (options = {}) => createProgressBar({ ...defaultOptions, ...options, mode: "indeterminate" });
+  configured.wait = (options = {}) =>
+    createProgressBar({ ...defaultOptions, ...options, mode: "indeterminate" });
   configured.indeterminate = configured.wait;
   configured.spinner = configured.wait;
-  configured.map = (input, mapper, options = {}) => mapWithProgress(input, mapper, { ...defaultOptions, ...options });
-  configured.each = (input, handler, options = {}) => eachWithProgress(input, handler, { ...defaultOptions, ...options });
+  configured.map = (input, mapper, options = {}) =>
+    mapWithProgress(input, mapper, { ...defaultOptions, ...options });
+  configured.each = (input, handler, options = {}) =>
+    eachWithProgress(input, handler, { ...defaultOptions, ...options });
   configured.stream = (options = {}) => streamWithProgress({ ...defaultOptions, ...options });
   configured.group = (options = {}) => createGroup({ ...defaultOptions, ...options });
-  configured.task = (label, handler, options = {}) => task(label, handler, { ...defaultOptions, ...options });
+  configured.task = (label, handler, options = {}) =>
+    task(label, handler, { ...defaultOptions, ...options });
   configured.configure = (options = {}) => configure({ ...defaultOptions, ...options });
   return configured;
 }
