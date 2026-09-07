@@ -48,7 +48,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "biome check . && npm run typecheck",
-    "test": "npm run build && node --test test/",
+    "test": "npm run build && node --test",
     "check": "node --check dist/index.js",
     "prepack": "npm test",
     "prepare:zip": "npm test && node --check dist/index.js",
