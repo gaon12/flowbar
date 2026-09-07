@@ -1,0 +1,15 @@
+import type { FlowbarUnit } from "./types.js";
+export declare function stripAnsi(value: unknown): string;
+export declare function isZeroWidthCodePoint(codePoint: number): boolean;
+export declare function codePointWidth(codePoint: number): number;
+export declare function displayWidth(value: unknown): number;
+export declare function readAnsiSequence(text: string, start: number): string | undefined;
+export declare function truncateDisplay(value: unknown, maxWidth: number): string;
+export declare function padLeft(value: unknown, width: number, fill?: string): string;
+export declare function formatDuration(milliseconds: number): string;
+export declare function formatNumber(value: number): string;
+export declare function formatBytes(value: number): string;
+export declare function pluralizeUnit(unit: string, value: number): string;
+export declare function formatAmount(value: number, unit: FlowbarUnit): string;
+export declare function formatRate(rate: number, unit: FlowbarUnit): string;
+export declare function stringifyPostfix(postfix: Record<string, unknown>): string;

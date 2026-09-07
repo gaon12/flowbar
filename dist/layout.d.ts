@@ -1,0 +1,10 @@
+import type { FlowbarAnimation, FlowbarCharset, FlowbarSnapshot, RendererFinishState, RequiredNormalizedFlowbarOptions } from "./types.js";
+export declare function makeBar(width: number, ratio: number, charset: Exclude<FlowbarCharset, "auto">): string;
+export declare function makeIndeterminateBar(width: number, frameIndex: number, style: FlowbarAnimation, segmentWidth: number | undefined, charset: Exclude<FlowbarCharset, "auto">): string;
+export declare function compactLine(line: string, width: number): string;
+export declare function colorize(value: string, code: number, options: Readonly<RequiredNormalizedFlowbarOptions>): string;
+export declare function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string;
+export declare function buildCountingLine(snapshot: FlowbarSnapshot, width: number): string;
+export declare function buildIndeterminateLine(snapshot: FlowbarSnapshot, width: number): string;
+export declare function buildFinalLine(snapshot: FlowbarSnapshot, state: RendererFinishState, message: string, width: number): string;
+export declare function buildLine(snapshot: FlowbarSnapshot, width: number): string;
