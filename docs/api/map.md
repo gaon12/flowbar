@@ -69,3 +69,4 @@ await flowbar.map(items, worker, {
 - mapper 또는 handler가 실패하면 bar는 failure 상태로 종료되고 원래 error를 다시 던집니다.
 - async iterator 입력에 `return()`이 있으면 실패 시 호출합니다.
 - 이미 실행 중인 concurrent mapper는 JavaScript promise semantics상 강제 중단하지 않습니다. 취소가 필요하면 `AbortSignal`을 mapper 내부 작업에도 전달합니다.
+- 실패하면 새 작업 배정을 멈추고 이미 실행 중인 mapper가 정리된 후 원래 오류를 다시 던집니다. 따라서 끝나지 않는 mapper는 반환도 지연시킵니다.

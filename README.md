@@ -223,7 +223,7 @@ const bar = flowbar.create({
 
 이 저장소에는 GitHub Actions workflow가 들어 있습니다.
 
-- `.github/workflows/ci.yml`: push와 pull request에서 typecheck, syntax check, test, package dry-run을 실행합니다.
+- `.github/workflows/ci.yml`: push와 pull request에서 Biome 린트·포맷, typecheck, test, package dry-run을 실행합니다.
 - `.github/workflows/release.yml`: `vX.Y.Z` 태그가 push되면 npm에 publish하고 GitHub Release를 만듭니다.
 
 예를 들어 `0.1.0`을 배포하려면 다음처럼 태그를 push합니다.
@@ -241,9 +241,18 @@ release workflow는 repository secret `NPM_TOKEN`을 사용합니다.
 npm ci
 npm run typecheck
 npm run lint
+npm run format:check
 npm test
 npm pack --dry-run
 ```
+
+린트와 포맷은 개발 의존성인 Biome으로 실행합니다. 런타임 의존성은 없습니다.
+`npm run lint:fix`는 린트 자동 수정과 포맷을, `npm run format`은 포맷만 적용합니다.
+실제 터미널 출력은 `node examples/preview.mjs`로 확인할 수 있습니다.
+
+기본 막대는 진행된 구간만 블록으로 채우고 빈 구간은 공백으로 유지합니다.
+Unicode에서는 부분 블록을, ASCII에서는 `#`를 사용합니다.
+CI·파이프에서는 ANSI 없는 일반 로그를 출력하고 대기 애니메이션만으로 로그를 반복하지 않습니다.
 
 ## License
 
