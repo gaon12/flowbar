@@ -1,6 +1,2 @@
-import { Transform } from "node:stream";
-import { type ProgressBar } from "./progress.js";
-import type { FlowbarOptions } from "./types.js";
-export declare function streamWithProgress(options?: FlowbarOptions): Transform & {
-    flowbar: ProgressBar;
-};
+import type { FlowbarStream, FlowbarStreamOptions } from "./types.js";
+export declare function streamWithProgress(options?: FlowbarStreamOptions): FlowbarStream;

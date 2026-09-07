@@ -89,6 +89,15 @@ export type RequiredNormalizedFlowbarOptions = FlowbarOptions & {
 export type FlowbarMapOptions = FlowbarOptions & {
     concurrency?: number;
 };
+export type FlowbarStreamOptions = FlowbarOptions & {
+    /** Leave completion to the caller when track() is not used. */
+    completion?: "manual";
+};
+export type FlowbarStream = Transform & {
+    flowbar: ProgressBar;
+    /** Call immediately with the entire pipeline promise to track destination completion. */
+    track<T>(operation: PromiseLike<T>): Promise<T>;
+};
 export type FlowbarMapper<T, R> = (item: T, index: number, bar: ProgressBar) => R | Promise<R>;
 export type FlowbarHandler<T> = (item: T, index: number, bar: ProgressBar) => void | Promise<void>;
 export type FlowbarGroup = {
@@ -111,9 +120,7 @@ export interface FlowbarFunction {
     spinner(options?: FlowbarOptions): ProgressBar;
     map<T, R>(input: Iterable<T> | AsyncIterable<T>, mapper: FlowbarMapper<T, R>, options?: FlowbarMapOptions): Promise<R[]>;
     each<T>(input: Iterable<T> | AsyncIterable<T>, handler: FlowbarHandler<T>, options?: FlowbarMapOptions): Promise<void>;
-    stream(options?: FlowbarOptions): Transform & {
-        flowbar: ProgressBar;
-    };
+    stream(options?: FlowbarStreamOptions): FlowbarStream;
     group(options?: FlowbarOptions): FlowbarGroup;
     task<T>(label: string, handler: (task: FlowbarTaskApi) => T | Promise<T>, options?: FlowbarOptions): Promise<T>;
     configure(defaultOptions?: FlowbarOptions): FlowbarFunction;

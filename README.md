@@ -141,15 +141,16 @@ import flowbar from "flowbar";
 const input = "input.bin";
 const output = "output.bin";
 
-await pipeline(
-  createReadStream(input),
-  flowbar.stream({
+const progress = flowbar.stream({
     label: "copy",
     total: statSync(input).size,
     unit: "byte",
-  }),
+  });
+await progress.track(pipeline(
+  createReadStream(input),
+  progress,
   createWriteStream(output),
-);
+));
 ```
 
 ## 여러 단계 작업

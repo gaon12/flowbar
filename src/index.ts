@@ -73,6 +73,8 @@ export type {
   FlowbarRenderCallback,
   FlowbarRendererName,
   FlowbarSnapshot,
+  FlowbarStream,
+  FlowbarStreamOptions,
   FlowbarTaskApi,
   FlowbarTiming,
   FlowbarUnit,

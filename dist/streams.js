@@ -1,13 +1,14 @@
 import { Transform } from "node:stream";
 import { createProgressBar } from "./progress.js";
-import { isFiniteNumber } from "./utils.js";
+import { isAbortErrorLike, isFiniteNumber } from "./utils.js";
 export function streamWithProgress(options = {}) {
     const bar = createProgressBar({ ...options, unit: options.unit || "byte" });
-    const unit = bar.options.unit;
+    let tracking = false;
     const transform = new Transform({
+        signal: options.signal,
         transform(chunk, _encoding, callback) {
             try {
-                const amount = unit === "byte" &&
+                const amount = bar.options.unit === "byte" &&
                     chunk != null &&
                     typeof chunk === "object" &&
                     "length" in chunk &&
@@ -18,16 +19,6 @@ export function streamWithProgress(options = {}) {
                 callback(null, chunk);
             }
             catch (error) {
-                bar.fail(error);
-                callback(error instanceof Error ? error : new Error(String(error)));
-            }
-        },
-        flush(callback) {
-            try {
-                bar.succeed();
-                callback();
-            }
-            catch (error) {
                 callback(error instanceof Error ? error : new Error(String(error)));
             }
         },
@@ -35,13 +26,34 @@ export function streamWithProgress(options = {}) {
     transform.flowbar = bar;
     transform.on("error", (error) => {
         if (!bar.closed) {
-            bar.fail(error);
+            if (isAbortErrorLike(error))
+                bar.cancel("aborted");
+            else
+                bar.fail(error);
         }
     });
     transform.on("close", () => {
-        if (!bar.closed) {
-            bar.close();
+        if (!bar.closed && !tracking && options.completion !== "manual") {
+            // A Transform cannot prove that its destination persisted the data.
+            bar.close("stream closed; destination completion untracked");
         }
     });
+    transform.track = async (operation) => {
+        if (tracking || bar.closed)
+            throw new Error("track() must be called once, before the stream closes.");
+        tracking = true;
+        try {
+            const result = await operation;
+            bar.succeed();
+            return result;
+        }
+        catch (error) {
+            if (isAbortErrorLike(error))
+                bar.cancel("aborted");
+            else
+                bar.fail(error);
+            throw error;
+        }
+    };
     return transform;
 }

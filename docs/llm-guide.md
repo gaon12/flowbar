@@ -83,11 +83,12 @@ wait.succeed("ready");
 ## stream
 
 ```js
-await pipeline(
+const progress = flowbar.stream({ label: "copy", total: size, unit: "byte" });
+await progress.track(pipeline(
   createReadStream(input),
-  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  progress,
   createWriteStream(output),
-);
+));
 ```
 
 ## 피해야 할 패턴

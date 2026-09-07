@@ -104,11 +104,12 @@ If mapper or handler fails, the bar fails and async iterator `return()` is calle
 ## Stream
 
 ```js
-await pipeline(
+const progress = flowbar.stream({ label: "copy", total: size, unit: "byte" });
+await progress.track(pipeline(
   createReadStream(input),
-  flowbar.stream({ label: "copy", total: size, unit: "byte" }),
+  progress,
   createWriteStream(output),
-);
+));
 ```
 
 `unit: "byte"` increments by chunk length and formats byte units as B, KiB, MiB, GiB, and higher.
