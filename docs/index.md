@@ -12,18 +12,25 @@ This file is the short entry point for humans and LLMs. Prefer the smallest API 
 - Use `docs/api/stream.md` for Node.js `Transform` byte progress.
 - Use `docs/api/wait.md` for indeterminate work.
 - Use `docs/api/group.md` for multiple bars in one terminal live region.
+- Use `docs/api/task.md` for multi-step task workflows.
 - Use `docs/api/types.md` for TypeScript names and option shapes.
 - Use `docs/terminal-behavior.md` for renderer, throttling, TTY, CI, width, and logging behavior.
+- Use `docs/terminal-reliability.md` for terminal stability expectations and regression coverage.
+- Use `docs/recipes.md` for copy-ready Node.js workflow examples.
+- Use `docs/comparison.md` for positioning and fair comparison guidance.
+- Use `docs/release.md` for GitHub Release and npm publish workflow.
 - Use `docs/full.md` only when a single combined document is needed.
 
 ## Core Contract
 
 - Default import: `import flowbar from "flowbar";`
+- Helper API: use named imports such as `import { create, each, stream } from "flowbar";`.
 - Default output: `stderr`.
 - Default renderer: `auto`.
+- Both ESM imports and a callable CommonJS `require("flowbar")` entry are published.
 - TTY renderer updates a live region and throttles fast update loops by `interval`.
 - CI, pipe, and non-TTY output use plain line rendering.
-- `flowbar.map` returns ordered results.
-- `flowbar.each` returns `undefined` and does not allocate a result array.
-- Mapper or handler failure closes the bar and calls async iterator `return()` when available.
+- `map` returns ordered results; `each` returns `undefined` and does not allocate a result array.
+- Concurrency is an integer from 1 through 1024 and is capped to a known input size.
+- Mapper or handler failure aborts its fourth-argument signal, awaits in-flight work, and calls async iterator `return()` when available.
 - Numeric runtime inputs must be finite. Negative totals and current values are rejected where they define stored progress state.

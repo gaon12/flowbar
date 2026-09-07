@@ -5,8 +5,10 @@ flowbar is a zero-dependency progress toolkit for modern Node.js.
 Use this import:
 
 ```js
-import flowbar from "flowbar";
+import flowbar, { each, map, task, wait } from "flowbar";
 ```
+
+CommonJS is also supported: `const flowbar = require("flowbar")`; named helpers are properties on the callable wrapper.
 
 Important docs:
 
@@ -19,8 +21,13 @@ Important docs:
 - Stream API: docs/api/stream.md
 - Indeterminate API: docs/api/wait.md
 - Group API: docs/api/group.md
+- Task API: docs/api/task.md
 - TypeScript types: docs/api/types.md
 - Terminal behavior: docs/terminal-behavior.md
+- Terminal reliability: docs/terminal-reliability.md
+- Recipes: docs/recipes.md
+- Comparison: docs/comparison.md
+- Release: docs/release.md
 - LLM guide: docs/llm-guide.md
 
 Core examples:
@@ -32,23 +39,23 @@ for (const item of flowbar(items, { label: "items" })) {
 ```
 
 ```js
-await flowbar.map(items, async (item) => processItem(item), {
+await map(items, async (item) => processItem(item), {
   label: "items",
   concurrency: 8,
 });
 ```
 
 ```js
-await flowbar.each(items, async (item) => processItem(item), {
+await each(items, async (item) => processItem(item), {
   label: "items",
   concurrency: 8,
 });
 ```
 
 ```js
-const wait = flowbar.wait({ label: "server", animation: "marquee" });
+const waiting = wait({ label: "server", animation: "marquee" });
 await startServer();
-wait.succeed("ready");
+waiting.succeed("ready");
 ```
 
 Rules:
@@ -56,7 +63,11 @@ Rules:
 - Use `map` when ordered results are needed.
 - Use `each` when results are not needed.
 - Do not fake percent or ETA for indeterminate tasks.
-- Numeric state and concurrency must be finite.
+- Concurrency must be an integer from 1 through 1024 and is capped to known input size.
 - ProgressBar public state is read-only; change state through methods.
-- `charset: "ascii"` keeps final markers ASCII-only; `color: true` colors final markers.
+- Use named `task` for multi-step workflows; `task.progress` keeps the root alive for later steps.
+- Mapper/handler receives a cancellation signal as its fourth argument; rejection waits for in-flight cleanup.
+- Known totals show ETA from the first usable rate sample, and the bar consumes remaining terminal width before dropping ETA.
+- The unfinished track is blank by default; use `barTrack: "shaded"` for visible track cells.
+- `charset: "ascii"` keeps final markers ASCII-only; `color: true`, `"auto"`, or a named color styles filled progress cells.
 - Use `renderer: "silent"` in tests.
