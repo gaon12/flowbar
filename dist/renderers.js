@@ -1,8 +1,10 @@
+import { singleLine, stripAnsi } from "./display.js";
 import { buildFinalLine, buildLine } from "./layout.js";
 import { getTerminalWidth } from "./options.js";
 import { TerminalRenderer } from "./terminal.js";
 import { now } from "./utils.js";
 export class SilentRenderer {
+    animated = false;
     register() { }
     update() { }
     finalize() { }
@@ -10,6 +12,7 @@ export class SilentRenderer {
     dispose() { }
 }
 export class MemoryRenderer {
+    animated = true;
     options;
     constructor(options) {
         this.options = options;
@@ -37,6 +40,7 @@ export class MemoryRenderer {
     dispose() { }
 }
 export class PlainRenderer {
+    animated = false;
     options;
     lastWriteAt;
     constructor(options) {
@@ -53,7 +57,7 @@ export class PlainRenderer {
         }
         this.lastWriteAt = currentTime;
         const snapshot = bar.snapshot();
-        const line = buildLine(snapshot, getTerminalWidth(this.options.output, this.options));
+        const line = stripAnsi(buildLine(snapshot, getTerminalWidth(this.options.output, this.options)));
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, snapshot);
     }
@@ -62,17 +66,19 @@ export class PlainRenderer {
             return;
         }
         const snapshot = bar.snapshot();
-        const line = buildFinalLine(snapshot, state, message, getTerminalWidth(this.options.output, this.options));
+        const line = stripAnsi(buildFinalLine(snapshot, state, message, getTerminalWidth(this.options.output, this.options)));
         this.options.output.write(`${line}\n`);
         this.options.onRender?.(line, snapshot);
     }
     log(_bar, level, message) {
+        message = stripAnsi(singleLine(message));
         this.options.output.write(`${level}: ${message}\n`);
         this.options.onRender?.(`${level}: ${message}`, undefined);
     }
     dispose() { }
 }
 export class JsonRenderer {
+    animated = false;
     options;
     lastWriteAt;
     constructor(options) {
@@ -110,7 +116,7 @@ export class JsonRenderer {
     dispose() { }
 }
 export function isCiEnvironment() {
-    return (process.env.CI === "true" ||
+    return ((Boolean(process.env.CI) && !["false", "0"].includes((process.env.CI ?? "").toLowerCase())) ||
         process.env.GITHUB_ACTIONS === "true" ||
         process.env.GITLAB_CI === "true" ||
         process.env.BITBUCKET_BUILD_NUMBER != null);
@@ -131,7 +137,7 @@ export function createRenderer(options) {
     if (options.renderer === "terminal") {
         return new TerminalRenderer(options);
     }
-    if (options.output?.isTTY && !isCiEnvironment()) {
+    if (options.output?.isTTY && process.env.TERM !== "dumb" && !isCiEnvironment()) {
         return new TerminalRenderer(options);
     }
     return new PlainRenderer(options);

@@ -1,6 +1,7 @@
 import type { ProgressBar } from "./progress.js";
 import type { Renderer, RendererFinishState, RequiredNormalizedFlowbarOptions } from "./types.js";
 export declare class SilentRenderer implements Renderer {
+    readonly animated = false;
     register(): void;
     update(): void;
     finalize(): void;
@@ -8,6 +9,7 @@ export declare class SilentRenderer implements Renderer {
     dispose(): void;
 }
 export declare class MemoryRenderer implements Renderer {
+    readonly animated = true;
     readonly options: RequiredNormalizedFlowbarOptions;
     constructor(options: RequiredNormalizedFlowbarOptions);
     register(bar: ProgressBar): void;
@@ -17,6 +19,7 @@ export declare class MemoryRenderer implements Renderer {
     dispose(): void;
 }
 export declare class PlainRenderer implements Renderer {
+    readonly animated = false;
     readonly options: RequiredNormalizedFlowbarOptions;
     private lastWriteAt;
     constructor(options: RequiredNormalizedFlowbarOptions);
@@ -27,6 +30,7 @@ export declare class PlainRenderer implements Renderer {
     dispose(): void;
 }
 export declare class JsonRenderer implements Renderer {
+    readonly animated = false;
     readonly options: RequiredNormalizedFlowbarOptions;
     private lastWriteAt;
     constructor(options: RequiredNormalizedFlowbarOptions);

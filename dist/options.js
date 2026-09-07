@@ -13,7 +13,7 @@ export function chooseCharset(options, output) {
     if (process.env.LC_ALL === "C" || process.env.LANG === "C") {
         return "ascii";
     }
-    if (output && output.isTTY === false && process.env.FLOWBAR_UNICODE !== "1") {
+    if (!output.isTTY && process.env.FLOWBAR_UNICODE !== "1") {
         return "ascii";
     }
     return "unicode";
@@ -103,7 +103,10 @@ export function normalizeOptions(options = {}) {
 }
 export function getTerminalWidth(output, options) {
     if (isFiniteNumber(options.width) && options.width > 0) {
-        return Math.floor(options.width);
+        const wanted = Math.max(1, Math.floor(options.width));
+        return output.isTTY && isFiniteNumber(output.columns)
+            ? Math.min(wanted, Math.max(1, Math.floor(output.columns - options.wrapGuardColumns)))
+            : wanted;
     }
     if (options.dynamicWidth !== false && isFiniteNumber(output?.columns)) {
         return Math.max(1, Math.floor(output.columns - options.wrapGuardColumns));

@@ -1,3 +1,4 @@
+import { singleLine, stripAnsi } from "./display.js";
 import { buildFinalLine, buildLine } from "./layout.js";
 import { getTerminalWidth } from "./options.js";
 import type { ProgressBar } from "./progress.js";
@@ -6,6 +7,7 @@ import type { Renderer, RendererFinishState, RequiredNormalizedFlowbarOptions } 
 import { now } from "./utils.js";
 
 export class SilentRenderer implements Renderer {
+  readonly animated = false;
   register(): void {}
   update(): void {}
   finalize(): void {}
@@ -14,6 +16,7 @@ export class SilentRenderer implements Renderer {
 }
 
 export class MemoryRenderer implements Renderer {
+  readonly animated = true;
   readonly options: RequiredNormalizedFlowbarOptions;
 
   constructor(options: RequiredNormalizedFlowbarOptions) {
@@ -43,6 +46,7 @@ export class MemoryRenderer implements Renderer {
 }
 
 export class PlainRenderer implements Renderer {
+  readonly animated = false;
   readonly options: RequiredNormalizedFlowbarOptions;
   private lastWriteAt: number;
 
@@ -60,7 +64,9 @@ export class PlainRenderer implements Renderer {
     }
     this.lastWriteAt = currentTime;
     const snapshot = bar.snapshot();
-    const line = buildLine(snapshot, getTerminalWidth(this.options.output, this.options));
+    const line = stripAnsi(
+      buildLine(snapshot, getTerminalWidth(this.options.output, this.options)),
+    );
     this.options.output.write(`${line}\n`);
     this.options.onRender?.(line, snapshot);
   }
@@ -69,16 +75,14 @@ export class PlainRenderer implements Renderer {
       return;
     }
     const snapshot = bar.snapshot();
-    const line = buildFinalLine(
-      snapshot,
-      state,
-      message,
-      getTerminalWidth(this.options.output, this.options),
+    const line = stripAnsi(
+      buildFinalLine(snapshot, state, message, getTerminalWidth(this.options.output, this.options)),
     );
     this.options.output.write(`${line}\n`);
     this.options.onRender?.(line, snapshot);
   }
   log(_bar: ProgressBar, level: "info" | "warn" | "error", message: string): void {
+    message = stripAnsi(singleLine(message));
     this.options.output.write(`${level}: ${message}\n`);
     this.options.onRender?.(`${level}: ${message}`, undefined);
   }
@@ -86,6 +90,7 @@ export class PlainRenderer implements Renderer {
 }
 
 export class JsonRenderer implements Renderer {
+  readonly animated = false;
   readonly options: RequiredNormalizedFlowbarOptions;
   private lastWriteAt: number;
 
@@ -126,7 +131,7 @@ export class JsonRenderer implements Renderer {
 
 export function isCiEnvironment(): boolean {
   return (
-    process.env.CI === "true" ||
+    (Boolean(process.env.CI) && !["false", "0"].includes((process.env.CI ?? "").toLowerCase())) ||
     process.env.GITHUB_ACTIONS === "true" ||
     process.env.GITLAB_CI === "true" ||
     process.env.BITBUCKET_BUILD_NUMBER != null
@@ -149,7 +154,7 @@ export function createRenderer(options: RequiredNormalizedFlowbarOptions): Rende
   if (options.renderer === "terminal") {
     return new TerminalRenderer(options);
   }
-  if (options.output?.isTTY && !isCiEnvironment()) {
+  if (options.output?.isTTY && process.env.TERM !== "dumb" && !isCiEnvironment()) {
     return new TerminalRenderer(options);
   }
   return new PlainRenderer(options);

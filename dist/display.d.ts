@@ -1,10 +1,12 @@
 import type { FlowbarUnit } from "./types.js";
+/** Keep styling, but never let user text move the terminal cursor. */
+export declare function singleLine(value: unknown): string;
 export declare function stripAnsi(value: unknown): string;
 export declare function isZeroWidthCodePoint(codePoint: number): boolean;
 export declare function codePointWidth(codePoint: number): number;
 export declare function displayWidth(value: unknown): number;
 export declare function readAnsiSequence(text: string, start: number): string | undefined;
-export declare function truncateDisplay(value: unknown, maxWidth: number): string;
+export declare function truncateDisplay(value: unknown, maxWidth: number, ellipsis?: string): string;
 export declare function padLeft(value: unknown, width: number, fill?: string): string;
 export declare function formatDuration(milliseconds: number): string;
 export declare function formatNumber(value: number): string;

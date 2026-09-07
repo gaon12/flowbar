@@ -164,6 +164,7 @@ export type FlowbarCloseCallback = (
 ) => void;
 
 export type Renderer = {
+  readonly animated: boolean;
   register(bar: ProgressBar): void;
   update(bar: ProgressBar, force?: boolean): void;
   finalize(bar: ProgressBar, state: RendererFinishState, message: string, leave: boolean): void;

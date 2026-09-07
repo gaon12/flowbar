@@ -154,7 +154,7 @@ export class ProgressBar {
     shouldRunAnimation() {
         return (!this.closedValue &&
             this.normalizedOptions.enabled &&
-            this.normalizedOptions.renderer !== "silent" &&
+            this.renderer.animated &&
             this.getMode() === "indeterminate");
     }
     stopAnimationTimer() {

@@ -1,7 +1,23 @@
+import { stripVTControlCharacters } from "node:util";
 import type { FlowbarUnit } from "./types.js";
 
+const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+const sgrPattern = /(\u001B\[[0-9;:]*m)/g;
+
+/** Keep styling, but never let user text move the terminal cursor. */
+export function singleLine(value: unknown): string {
+  return String(value)
+    .split(sgrPattern)
+    .map((part) =>
+      /^\u001B\[[0-9;:]*m$/.test(part)
+        ? part
+        : stripAnsi(part).replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, " "),
+    )
+    .join("");
+}
+
 export function stripAnsi(value: unknown): string {
-  return String(value).replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, "");
+  return stripVTControlCharacters(String(value));
 }
 
 export function isZeroWidthCodePoint(codePoint: number): boolean {
@@ -46,8 +62,17 @@ export function codePointWidth(codePoint: number): number {
 export function displayWidth(value: unknown): number {
   const plain = stripAnsi(value);
   let width = 0;
-  for (const char of plain) {
-    width += codePointWidth(char.codePointAt(0) ?? 0);
+  for (const { segment } of segmenter.segment(plain)) {
+    width += graphemeWidth(segment);
+  }
+  return width;
+}
+
+function graphemeWidth(segment: string): number {
+  if (/\p{Emoji_Presentation}|\p{Regional_Indicator}|\uFE0F|\u20E3/u.test(segment)) return 2;
+  let width = 0;
+  for (const char of segment) {
+    if (!/\p{Mark}/u.test(char)) width = Math.max(width, codePointWidth(char.codePointAt(0) ?? 0));
   }
   return width;
 }
@@ -57,8 +82,8 @@ export function readAnsiSequence(text: string, start: number): string | undefine
   return match?.[0];
 }
 
-export function truncateDisplay(value: unknown, maxWidth: number): string {
-  const text = String(value);
+export function truncateDisplay(value: unknown, maxWidth: number, ellipsis = "…"): string {
+  const text = singleLine(value);
   if (maxWidth <= 0) {
     return "";
   }
@@ -66,29 +91,24 @@ export function truncateDisplay(value: unknown, maxWidth: number): string {
     return text;
   }
   if (maxWidth === 1) {
-    return "…";
+    return ellipsis;
   }
   let result = "";
   let width = 0;
   const targetWidth = Math.max(0, maxWidth - 1);
-  for (let index = 0; index < text.length; ) {
-    const ansi = readAnsiSequence(text, index);
-    if (ansi) {
-      result += ansi;
-      index += ansi.length;
-      continue;
+  outer: for (const part of text.split(sgrPattern)) {
+    if (/^\u001B\[[0-9;:]*m$/.test(part)) {
+      result += part;
+    } else {
+      for (const { segment } of segmenter.segment(part)) {
+        const charWidth = graphemeWidth(segment);
+        if (width + charWidth > targetWidth) break outer;
+        result += segment;
+        width += charWidth;
+      }
     }
-    const codePoint = text.codePointAt(index) ?? 0;
-    const char = String.fromCodePoint(codePoint);
-    const charWidth = codePointWidth(codePoint);
-    if (width + charWidth > targetWidth) {
-      break;
-    }
-    result += char;
-    width += charWidth;
-    index += char.length;
   }
-  return `${result}…`;
+  return `${result}${ellipsis}${result.includes("\u001B[") ? "\u001B[0m" : ""}`;
 }
 
 export function padLeft(value: unknown, width: number, fill = " "): string {

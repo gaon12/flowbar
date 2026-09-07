@@ -123,6 +123,7 @@ export type FlowbarFinishState = "success" | "failure" | "cancelled" | "closed";
 export type RendererFinishState = FlowbarFinishState;
 export type FlowbarCloseCallback = (bar: ProgressBar, state: FlowbarFinishState, message: string) => void;
 export type Renderer = {
+    readonly animated: boolean;
     register(bar: ProgressBar): void;
     update(bar: ProgressBar, force?: boolean): void;
     finalize(bar: ProgressBar, state: RendererFinishState, message: string, leave: boolean): void;

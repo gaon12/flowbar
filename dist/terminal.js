@@ -50,9 +50,12 @@ export class TerminalHub {
         else {
             this.render(true);
         }
+        if (leave)
+            bar.options.onRender?.(line, bar.snapshot());
     }
     log(bar, level, message) {
         this.safeWriteLine(`${level}: ${message}`, bar.options);
+        bar.options.onRender?.(`${level}: ${message}`, undefined);
     }
     dispose() {
         if (this.disposed) {
@@ -82,7 +85,7 @@ export class TerminalHub {
     }
     safeWriteLine(line, options) {
         this.deleteLiveRegion();
-        this.output.write(`${truncateDisplay(line, getTerminalWidth(this.output, options))}\n`);
+        this.output.write(`${truncateDisplay(line, getTerminalWidth(this.output, options), options.charset === "ascii" ? "." : "…")}\r\n`);
         this.render(true);
     }
     render(force, interval = this.options.interval) {
@@ -108,16 +111,19 @@ export class TerminalHub {
                 this.output.write(lines[index]);
             }
             if (index < maximumLines - 1) {
-                this.output.write("\n");
+                this.output.write("\r\n");
             }
         }
         if (lines.length < maximumLines) {
             this.output.write(`\u001B[${maximumLines - lines.length}A`);
         }
         this.renderedLineCount = lines.length;
+        for (const [index, bar] of bars.entries())
+            bar.options.onRender?.(lines[index], bar.snapshot());
     }
 }
 export class TerminalRenderer {
+    animated = true;
     options;
     hub;
     disposed = false;

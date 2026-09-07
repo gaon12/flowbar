@@ -4,15 +4,18 @@ import { clampNumber, isFiniteNumber } from "./utils.js";
 export function makeBar(width, ratio, charset) {
     const safeWidth = Math.max(0, Math.floor(width));
     const safeRatio = clampNumber(Number.isFinite(ratio) ? ratio : 0, 0, 1);
-    const filledCount = Math.round(safeWidth * safeRatio);
+    const filled = safeWidth * safeRatio;
+    const filledCount = Math.floor(filled);
     const full = charset === "ascii" ? "#" : "█";
-    const empty = charset === "ascii" ? "-" : "░";
-    return `${full.repeat(filledCount)}${empty.repeat(Math.max(0, safeWidth - filledCount))}`;
+    const partial = charset === "unicode" && filledCount < safeWidth
+        ? " ▏▎▍▌▋▊▉"[Math.floor((filled - filledCount) * 8)]
+        : "";
+    return `${full.repeat(filledCount)}${partial}${" ".repeat(Math.max(0, safeWidth - filledCount - partial.length))}`;
 }
 export function makeIndeterminateBar(width, frameIndex, style, segmentWidth, charset) {
     const safeWidth = Math.max(1, Math.floor(width));
     const full = charset === "ascii" ? "#" : "█";
-    const empty = charset === "ascii" ? "-" : "░";
+    const empty = " ";
     const segment = clampNumber(Math.floor(segmentWidth || Math.max(3, safeWidth * 0.28)), 1, safeWidth);
     const chars = Array.from({ length: safeWidth }, () => empty);
     if (style === "pulse") {
@@ -51,7 +54,7 @@ export function makeIndeterminateBar(width, frameIndex, style, segmentWidth, cha
     return chars.join("");
 }
 export function compactLine(line, width) {
-    return truncateDisplay(line.replace(/\s+/g, " ").trim(), width);
+    return truncateDisplay(line.trimEnd(), width);
 }
 export function colorize(value, code, options) {
     if (!options.color) {
@@ -172,7 +175,7 @@ export function buildIndeterminateLine(snapshot, width) {
     }
     return compactLine(candidates[candidates.length - 1], width);
 }
-export function buildFinalLine(snapshot, state, message, width) {
+function buildRawFinalLine(snapshot, state, message, width) {
     const { options } = snapshot;
     const label = options.label || "flowbar";
     const elapsed = formatDuration(snapshot.timing.elapsedMs);
@@ -194,7 +197,7 @@ export function buildFinalLine(snapshot, state, message, width) {
     }
     return compactLine(`${label}  closed after ${elapsed}${suffix}`, width);
 }
-export function buildLine(snapshot, width) {
+function buildRawLine(snapshot, width) {
     const safeWidth = Math.max(1, Math.floor(width));
     if (snapshot.mode === "determinate") {
         return buildDeterminateLine(snapshot, safeWidth);
@@ -203,4 +206,14 @@ export function buildLine(snapshot, width) {
         return buildCountingLine(snapshot, safeWidth);
     }
     return buildIndeterminateLine(snapshot, safeWidth);
+}
+function fitLine(line, snapshot, width) {
+    const ascii = snapshot.options.charset === "ascii";
+    return truncateDisplay(ascii ? line.replaceAll("…", ".") : line, width, ascii ? "." : "…");
+}
+export function buildLine(snapshot, width) {
+    return fitLine(buildRawLine(snapshot, width), snapshot, width);
+}
+export function buildFinalLine(snapshot, state, message, width) {
+    return fitLine(buildRawFinalLine(snapshot, state, message, width), snapshot, width);
 }

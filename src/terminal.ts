@@ -59,9 +59,11 @@ export class TerminalHub {
     } else {
       this.render(true);
     }
+    if (leave) bar.options.onRender?.(line, bar.snapshot());
   }
   log(bar: ProgressBar, level: "info" | "warn" | "error", message: string): void {
     this.safeWriteLine(`${level}: ${message}`, bar.options);
+    bar.options.onRender?.(`${level}: ${message}`, undefined);
   }
   dispose(): void {
     if (this.disposed) {
@@ -91,7 +93,9 @@ export class TerminalHub {
   }
   safeWriteLine(line: string, options: RequiredNormalizedFlowbarOptions): void {
     this.deleteLiveRegion();
-    this.output.write(`${truncateDisplay(line, getTerminalWidth(this.output, options))}\n`);
+    this.output.write(
+      `${truncateDisplay(line, getTerminalWidth(this.output, options), options.charset === "ascii" ? "." : "…")}\r\n`,
+    );
     this.render(true);
   }
   render(force: boolean, interval = this.options.interval): void {
@@ -119,17 +123,19 @@ export class TerminalHub {
         this.output.write(lines[index]);
       }
       if (index < maximumLines - 1) {
-        this.output.write("\n");
+        this.output.write("\r\n");
       }
     }
     if (lines.length < maximumLines) {
       this.output.write(`\u001B[${maximumLines - lines.length}A`);
     }
     this.renderedLineCount = lines.length;
+    for (const [index, bar] of bars.entries()) bar.options.onRender?.(lines[index], bar.snapshot());
   }
 }
 
 export class TerminalRenderer implements Renderer {
+  readonly animated = true;
   readonly options: RequiredNormalizedFlowbarOptions;
   private readonly hub: TerminalHub;
   private disposed = false;

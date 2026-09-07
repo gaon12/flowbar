@@ -6,5 +6,5 @@ export declare function colorize(value: string, code: number, options: Readonly<
 export declare function buildDeterminateLine(snapshot: FlowbarSnapshot, width: number): string;
 export declare function buildCountingLine(snapshot: FlowbarSnapshot, width: number): string;
 export declare function buildIndeterminateLine(snapshot: FlowbarSnapshot, width: number): string;
-export declare function buildFinalLine(snapshot: FlowbarSnapshot, state: RendererFinishState, message: string, width: number): string;
 export declare function buildLine(snapshot: FlowbarSnapshot, width: number): string;
+export declare function buildFinalLine(snapshot: FlowbarSnapshot, state: RendererFinishState, message: string, width: number): string;

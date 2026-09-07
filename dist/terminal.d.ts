@@ -24,6 +24,7 @@ export declare class TerminalHub {
     render(force: boolean, interval?: number): void;
 }
 export declare class TerminalRenderer implements Renderer {
+    readonly animated = true;
     readonly options: RequiredNormalizedFlowbarOptions;
     private readonly hub;
     private disposed;
